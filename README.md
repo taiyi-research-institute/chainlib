@@ -3,9 +3,9 @@
 
 # 项目介绍
 
-## [ChainLib-Core](core/readme.md)
+## [ChainLib-Core](core/README.md)
 * 标准加密算法的统一
 * 通用数据结构和Trait
 
 ## 实现
-### [Ethereum](ethereum/readme.md)
+### [Ethereum](ethereum/README.md)

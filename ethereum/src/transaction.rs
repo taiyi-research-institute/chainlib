@@ -92,16 +92,7 @@ pub struct EthereumTransaction<N: EthereumNetwork> {
 }
 
 impl<N:EthereumNetwork> EthereumTransaction<N>{
-    pub fn sign_extern(&self, addr: EthereumAddress, r: Vec<u8>, s: Vec<u8>, recid: u32)->Result<Self,TransactionError>{
-        let mut transaction = self.clone();
-        transaction.sender = Some(addr);
-        transaction.signature = Some(EthereumTransactionSignature {
-            v: to_bytes(recid + N::CHAIN_ID * 2 + 35)?, // EIP155
-            r: r,
-            s: s,
-        });
-        Ok(transaction)
-    }
+    
 }
 
 impl<N: EthereumNetwork> Transaction for EthereumTransaction<N> {
@@ -122,9 +113,31 @@ impl<N: EthereumNetwork> Transaction for EthereumTransaction<N> {
         })
     }
 
+    /// Returns a signed transaction given the {r,s,recid}.
+    fn sign(&self, r: Vec<u8>, s: Vec<u8>, recid: u8)->Result<Self,TransactionError>{
+        let mut transaction = self.clone();
+        let message = secp256k1::Message::parse_slice(&self.to_transaction_id()?.txid)?;
+        let recovery_id = secp256k1::RecoveryId::parse(recid)?;
+        let mut signature = r.clone();
+        signature.extend_from_slice(&s);
+
+        let public_key = EthereumPublicKey::from_secp256k1_public_key(secp256k1::recover(
+            &message,
+            &secp256k1::Signature::parse_slice(signature.as_slice())?,
+            &recovery_id,
+        )?);
+        transaction.sender = Some(public_key.to_address(&EthereumFormat::Standard)?);
+        transaction.signature = Some(EthereumTransactionSignature {
+            v: to_bytes(u32::from(recid) + N::CHAIN_ID * 2 + 35)?, // EIP155
+            r: r,
+            s: s,
+        });
+        Ok(transaction)
+    }
+
     /// Returns a signed transaction given the private key of the sender.
     /// https://github.com/ethereum/EIPs/blob/master/EIPS/eip-155.md
-    fn sign(&self, private_key: &Self::PrivateKey) -> Result<Self, TransactionError> {
+    fn sign_with_private_key(&self, private_key: &Self::PrivateKey) -> Result<Self, TransactionError> {
         match (&self.sender, &self.signature) {
             (Some(_), Some(_)) => Ok(self.clone()),
             (Some(_), None) | (None, Some(_)) => Err(TransactionError::InvalidTransactionState),
@@ -337,7 +350,7 @@ mod tests {
         };
 
         let transaction = EthereumTransaction::<N>::new(&parameters).unwrap();
-        let signed_transaction = transaction.sign(&private_key).unwrap();
+        let signed_transaction = transaction.sign_with_private_key(&private_key).unwrap();
         assert_eq!(expected_signed_transaction, signed_transaction.to_string());
         assert_eq!(
             expected_signed_transaction_hash,
@@ -358,7 +371,7 @@ mod tests {
         };
 
         let transaction = EthereumTransaction::<N>::new(&parameters).unwrap();
-        let signed_transaction = transaction.sign(&private_key).unwrap();
+        let signed_transaction = transaction.sign_with_private_key(&private_key).unwrap();
 
         assert_eq!(None, transaction.sender);
         assert_eq!(
@@ -402,7 +415,7 @@ mod tests {
         };
 
         let transaction = EthereumTransaction::<N>::new(&parameters).unwrap();
-        let signed_transaction = transaction.sign(&private_key).unwrap();
+        let signed_transaction = transaction.sign_with_private_key(&private_key).unwrap();
         assert_eq!(
             expected_signed_transaction_bytes,
             signed_transaction.to_transaction_bytes().unwrap()
@@ -422,7 +435,7 @@ mod tests {
         };
 
         let transaction = EthereumTransaction::<N>::new(&parameters).unwrap();
-        let signed_transaction = transaction.sign(&private_key).unwrap();
+        let signed_transaction = transaction.sign_with_private_key(&private_key).unwrap();
         assert_eq!(
             expected_signed_transaction_hash,
             signed_transaction.to_transaction_id().unwrap().to_string()
@@ -442,7 +455,7 @@ mod tests {
         };
 
         let transaction = EthereumTransaction::<N>::new(&parameters).unwrap();
-        let signed_transaction = transaction.sign(&private_key).unwrap();
+        let signed_transaction = transaction.sign_with_private_key(&private_key).unwrap();
         assert_eq!(expected_signed_transaction, signed_transaction.to_string());
     }
 

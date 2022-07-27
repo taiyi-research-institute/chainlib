@@ -25,9 +25,12 @@ pub trait Transaction: Clone + Send + Sync + 'static {
 
     /// Returns an unsigned transaction given the transaction parameters.
     fn new(parameters: &Self::TransactionParameters) -> Result<Self, TransactionError>;
+    
+    /// Returns a signed transaction given the {r,s,v} value.
+    fn sign(&self, r: Vec<u8>, s: Vec<u8>, recid: u8) -> Result<Self, TransactionError>;
 
     /// Returns a signed transaction given the private key of the sender.
-    fn sign(&self, private_key: &Self::PrivateKey) -> Result<Self, TransactionError>;
+    fn sign_with_private_key(&self, private_key: &Self::PrivateKey) -> Result<Self, TransactionError>;
 
     /// Returns a transaction given the transaction bytes.
     fn from_transaction_bytes(transaction: &Vec<u8>) -> Result<Self, TransactionError>;

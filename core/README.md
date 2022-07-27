@@ -1,15 +1,16 @@
-# wagyu-model
+# ChainLib Core
 
-[![Crates.io](https://img.shields.io/crates/v/wagyu-model.svg?color=neon)](https://crates.io/crates/wagyu-model)
-[![Authors](https://img.shields.io/badge/authors-Aleo-orange.svg)](../AUTHORS)
-[![License](https://img.shields.io/badge/license-MIT/Apache--2.0-blue.svg)](./LICENSE-MIT)
+## 提供钱包基础数据结构和Trait
+* PrivateKey
+* PublicKey
+* Address
+* Amount
+* Transaction
+* Network
+* Format
 
-## License
-
-This work is licensed under either of the following licenses, at your discretion.
-
-- Apache License Version 2.0 (LICENSE-APACHE or http://www.apache.org/licenses/LICENSE-2.0)
-- MIT license (LICENSE-MIT or http://opensource.org/licenses/MIT)
-
-Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in the work by you,
-as defined in the Apache-2.0 license, shall be dual licensed as above, without any additional terms or conditions.
+## 统一标准算法库
+* base58
+* secp256k1
+* hex
+* rand

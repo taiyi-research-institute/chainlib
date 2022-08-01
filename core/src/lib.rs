@@ -43,3 +43,8 @@ pub use self::transaction::*;
 pub mod utilities;
 pub use self::utilities::*;
 
+
+//export common crate
+pub use libsecp256k1;
+
+pub use hex;

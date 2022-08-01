@@ -1,16 +1,15 @@
 use crate::address::EthereumAddress;
 use crate::format::EthereumFormat;
 use crate::public_key::EthereumPublicKey;
-use chainlib_core::{Address, AddressError, PrivateKey, PrivateKeyError, PublicKey};
+use chainlib_core::{Address, AddressError, PrivateKey, PrivateKeyError, PublicKey,libsecp256k1,hex};
 
 use core::{fmt, fmt::Display, str::FromStr};
 use rand::Rng;
-use secp256k1;
-use hex;
+
 
 /// Represents an Ethereum private key
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct EthereumPrivateKey(secp256k1::SecretKey);
+pub struct EthereumPrivateKey(libsecp256k1::SecretKey);
 
 impl PrivateKey for EthereumPrivateKey {
     type Address = EthereumAddress;
@@ -20,7 +19,7 @@ impl PrivateKey for EthereumPrivateKey {
     /// Returns a randomly-generated Ethereum private key.
     fn new<R: Rng>(rng: &mut R) -> Result<Self, PrivateKeyError> {
         let random: [u8; 32] = rng.gen();
-        Ok(Self(secp256k1::SecretKey::parse_slice(&random)?))
+        Ok(Self(libsecp256k1::SecretKey::parse_slice(&random)?))
     }
 
     /// Returns the public key of the corresponding Ethereum private key.
@@ -36,12 +35,12 @@ impl PrivateKey for EthereumPrivateKey {
 
 impl EthereumPrivateKey {
     /// Returns a private key given a secp256k1 secret key.
-    pub fn from_secp256k1_secret_key(secret_key: &secp256k1::SecretKey) -> Self {
+    pub fn from_secp256k1_secret_key(secret_key: &libsecp256k1::SecretKey) -> Self {
         Self(secret_key.clone())
     }
 
     /// Returns the secp256k1 secret key of the private key.
-    pub fn to_secp256k1_secret_key(&self) -> secp256k1::SecretKey {
+    pub fn to_secp256k1_secret_key(&self) -> libsecp256k1::SecretKey {
         self.0.clone()
     }
 }
@@ -55,7 +54,7 @@ impl FromStr for EthereumPrivateKey {
         }
 
         let secret_key = hex::decode(private_key)?;
-        Ok(Self(secp256k1::SecretKey::parse_slice(&secret_key)?))
+        Ok(Self(libsecp256k1::SecretKey::parse_slice(&secret_key)?))
     }
 }
 
@@ -85,7 +84,7 @@ mod tests {
         expected_private_key: &str,
         expected_public_key: &str,
         expected_address: &str,
-        secret_key: secp256k1::SecretKey,
+        secret_key: libsecp256k1::SecretKey,
     ) {
         let private_key = EthereumPrivateKey::from_secp256k1_secret_key(&secret_key);
         assert_eq!(secret_key, private_key.0);
@@ -98,7 +97,7 @@ mod tests {
     }
 
     fn test_from_str(
-        expected_secret_key: &secp256k1::SecretKey,
+        expected_secret_key: &libsecp256k1::SecretKey,
         expected_public_key: &str,
         expected_address: &str,
         private_key: &str,

@@ -15,6 +15,12 @@ pub use self::rinkeby::*;
 pub mod ropsten;
 pub use self::ropsten::*;
 
+pub mod heco;
+pub use self::heco::*;
+
+pub mod bsc;
+pub use self::bsc::*;
+
 /// The interface for an Ethereum network.
 pub trait EthereumNetwork: Network {
     const CHAIN_ID: u32;

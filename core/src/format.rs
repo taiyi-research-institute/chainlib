@@ -21,10 +21,3 @@ pub enum FormatError {
     #[fail(display = "unsupported derivation path for the format: {}", _0)]
     UnsupportedDerivationPath(String),
 }
-
-
-impl From<base58_monero::base58::Error> for FormatError {
-    fn from(error: base58_monero::base58::Error) -> Self {
-        FormatError::Crate("base58_monero", format!("{:?}", error))
-    }
-}

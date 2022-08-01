@@ -1,14 +1,13 @@
 use crate::address::EthereumAddress;
 use crate::format::EthereumFormat;
 use crate::private_key::EthereumPrivateKey;
-use chainlib_core::{Address, AddressError, PublicKey, PublicKeyError};
+use chainlib_core::{Address, AddressError, PublicKey, PublicKeyError,libsecp256k1,hex};
 
 use core::{fmt, fmt::Display, str::FromStr};
-use secp256k1;
 
 /// Represents an Ethereum public key
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct EthereumPublicKey(secp256k1::PublicKey);
+pub struct EthereumPublicKey(libsecp256k1::PublicKey);
 
 impl PublicKey for EthereumPublicKey {
     type Address = EthereumAddress;
@@ -17,7 +16,7 @@ impl PublicKey for EthereumPublicKey {
 
     /// Returns the address corresponding to the given public key.
     fn from_private_key(private_key: &Self::PrivateKey) -> Self {
-        Self(secp256k1::PublicKey::from_secret_key(
+        Self(libsecp256k1::PublicKey::from_secret_key(
             &private_key.to_secp256k1_secret_key(),
         ))
     }
@@ -30,12 +29,12 @@ impl PublicKey for EthereumPublicKey {
 
 impl EthereumPublicKey {
     /// Returns a public key given a secp256k1 public key.
-    pub fn from_secp256k1_public_key(public_key: secp256k1::PublicKey) -> Self {
+    pub fn from_secp256k1_public_key(public_key: libsecp256k1::PublicKey) -> Self {
         Self(public_key)
     }
 
     /// Returns the secp256k1 public key of the public key
-    pub fn to_secp256k1_public_key(&self) -> secp256k1::PublicKey {
+    pub fn to_secp256k1_public_key(&self) -> libsecp256k1::PublicKey {
         self.0.clone()
     }
 }
@@ -44,7 +43,7 @@ impl FromStr for EthereumPublicKey {
     type Err = PublicKeyError;
 
     fn from_str(public_key: &str) -> Result<Self, Self::Err> {
-        Ok(Self(secp256k1::PublicKey::parse_slice(
+        Ok(Self(libsecp256k1::PublicKey::parse_slice(
             hex::decode(format!("04{}", public_key).as_str())?.as_slice(),
             None,
         )?))

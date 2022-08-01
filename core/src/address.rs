@@ -102,11 +102,6 @@ impl From<base58::FromBase58Error> for AddressError {
     }
 }
 
-impl From<base58_monero::base58::Error> for AddressError {
-    fn from(error: base58_monero::base58::Error) -> Self {
-        AddressError::Crate("base58_monero", format!("{:?}", error))
-    }
-}
 
 impl From<bech32::Error> for AddressError {
     fn from(error: bech32::Error) -> Self {

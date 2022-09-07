@@ -1,7 +1,6 @@
 use crate::format::Format;
 use crate::private_key::{PrivateKey, PrivateKeyError};
 use crate::public_key::{PublicKey, PublicKeyError};
-
 use crate::no_std::*;
 use core::{
     fmt::{Debug, Display},
@@ -24,45 +23,45 @@ pub trait Address:
     fn from_public_key(public_key: &Self::PublicKey, format: &Self::Format) -> Result<Self, AddressError>;
 }
 
-#[derive(Debug, Fail)]
+#[derive(Debug, Error)]
 pub enum AddressError {
-    #[fail(display = "{}: {}", _0, _1)]
+    #[error("{0:}: {1:}")]
     Crate(&'static str, String),
 
-    #[fail(display = "invalid format conversion from {:?} to {:?}", _0, _1)]
+    #[error("invalid format conversion from {0:} to {1:}")]
     IncompatibleFormats(String, String),
 
-    #[fail(display = "invalid address: {}", _0)]
+    #[error("invalid address: {0:}")]
     InvalidAddress(String),
 
-    #[fail(display = "invalid byte length: {}", _0)]
+    #[error("invalid byte length: {0:}")]
     InvalidByteLength(usize),
 
-    #[fail(display = "invalid character length: {}", _0)]
+    #[error("invalid character length: {0:}")]
     InvalidCharacterLength(usize),
 
-    #[fail(display = "invalid address checksum: {{ expected: {:?}, found: {:?} }}", _0, _1)]
+    #[error("invalid address checksum: {{ expected: {0:}, found: {1:} }}")]
     InvalidChecksum(String, String),
 
-    #[fail(display = "invalid network: {{ expected: {:?}, found: {:?} }}", _0, _1)]
+    #[error("invalid network: {{ expected: {0}, found: {1} }}")]
     InvalidNetwork(String, String),
 
-    #[fail(display = "invalid address prefix: {:?}", _0)]
-    InvalidPrefix(Vec<u8>),
+    #[error("invalid address prefix: {0:}")]
+    InvalidPrefix(String),
 
-    #[fail(display = "invalid address prefix length: {:?}", _0)]
+    #[error("invalid address prefix length: {0:?}")]
     InvalidPrefixLength(usize),
 
-    #[fail(display = "{}", _0)]
+    #[error("{0}")]
     Message(String),
 
-    #[fail(display = "missing public spend key and/or public view key")]
+    #[error("missing public spend key and/or public view key")]
     MissingPublicKey,
 
-    #[fail(display = "{}", _0)]
+    #[error("{0}")]
     PrivateKeyError(PrivateKeyError),
 
-    #[fail(display = "{}", _0)]
+    #[error("{0}")]
     PublicKeyError(PublicKeyError),
 }
 

@@ -1,7 +1,7 @@
 use chainlib_core::{Amount, AmountError};
 
 use core::fmt;
-use ethereum_types::U256;
+use chainlib_core::ethereum_types::U256;
 
 /// Represents the amount of Ethereum in wei
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]

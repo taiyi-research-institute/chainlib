@@ -1,12 +1,13 @@
 use crate::format::EthereumFormat;
 use crate::private_key::EthereumPrivateKey;
 use crate::public_key::EthereumPublicKey;
-use chainlib_core::{to_hex_string, Address, AddressError, PrivateKey};
+use chainlib_core::{to_hex_string, Address, PrivateKey, Error, AddressError};
 
 use core::{convert::TryFrom, fmt, str::FromStr};
 use regex::Regex;
 use serde::Serialize;
-use tiny_keccak::keccak256;
+use chainlib_core::utilities::crypto::keccak256;
+use chainlib_core::hex;
 
 /// Represents an Ethereum address
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Hash)]
@@ -47,6 +48,14 @@ impl EthereumAddress {
 
         EthereumAddress(checksum_address)
     }
+
+    pub fn to_bytes(&self) -> Result<Vec<u8> ,Error> {
+        let regex = Regex::new(r"^0x").unwrap();
+        let address = self.0.clone();
+        let address = address.to_lowercase();
+        let address = regex.replace_all(&address, "").to_string();
+        return Ok(hex::decode(address)?);
+    }
 }
 
 impl<'a> TryFrom<&'a str> for EthereumAddress {
@@ -66,7 +75,8 @@ impl FromStr for EthereumAddress {
         let address = regex.replace_all(&address, "").to_string();
 
         if address.len() != 40 {
-            return Err(AddressError::InvalidCharacterLength(address.len()));
+            let err = AddressError::InvalidByteLength(address.len());
+            return Err(err);
         }
 
         let hash = to_hex_string(&keccak256(address.as_bytes()));
@@ -203,5 +213,12 @@ mod tests {
 
         let address = "0x9141B7539E7902872095C408BfA294435e2b8c8a0x9141B7539E7902872095C408BfA294435e2b8c8a";
         assert!(EthereumAddress::from_str(address).is_err());
+    }
+
+    #[test]
+    fn test_address() {
+        let pubkey = EthereumPublicKey::from_str("040b4fed878e6b0ff6847e2ac9c13b556d161e1344cd270ed6cafac21f0144399d9ef31f267722fdeccba59ffd57ff84a020a2d3b416344c68e840bc7d97e77570").unwrap();
+        let address = EthereumAddress::from_public_key(&pubkey, &EthereumFormat::Standard).unwrap();
+        println!("{}",address.to_string())
     }
 }

@@ -1,7 +1,7 @@
 use crate::address::EthereumAddress;
 use crate::format::EthereumFormat;
 use crate::public_key::EthereumPublicKey;
-use chainlib_core::{Address, AddressError, PrivateKey, PrivateKeyError, PublicKey,libsecp256k1,hex};
+use chainlib_core::{Address, PrivateKey, PrivateKeyError, PublicKey,libsecp256k1,hex, Error, AddressError};
 
 use core::{fmt, fmt::Display, str::FromStr};
 use rand::Rng;

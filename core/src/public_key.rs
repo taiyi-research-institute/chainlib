@@ -1,7 +1,7 @@
-use crate::address::{Address, AddressError};
+use crate::address::{Address};
 use crate::format::Format;
 use crate::private_key::PrivateKey;
-
+use crate::{Error, AddressError};
 use crate::no_std::*;
 use core::{
     fmt::{Debug, Display},
@@ -21,24 +21,24 @@ pub trait PublicKey: Clone + Debug + Display + FromStr + Send + Sync + 'static +
     fn to_address(&self, format: &Self::Format) -> Result<Self::Address, AddressError>;
 }
 
-#[derive(Debug, Fail)]
+#[derive(Debug, Error)]
 pub enum PublicKeyError {
-    #[fail(display = "{}: {}", _0, _1)]
+    #[error("{0}: {1}")]
     Crate(&'static str, String),
 
-    #[fail(display = "invalid byte length: {}", _0)]
+    #[error("invalid byte length: {0}")]
     InvalidByteLength(usize),
 
-    #[fail(display = "invalid character length: {}", _0)]
+    #[error("invalid character length: {0}")]
     InvalidCharacterLength(usize),
 
-    #[fail(display = "invalid public key prefix: {:?}", _0)]
+    #[error("invalid public key prefix: {0}")]
     InvalidPrefix(String),
 
-    #[fail(display = "no public spending key found")]
+    #[error("no public spending key found")]
     NoSpendingKey,
 
-    #[fail(display = "no public viewing key found")]
+    #[error("no public viewing key found")]
     NoViewingKey,
 }
 

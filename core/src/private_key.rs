@@ -1,8 +1,8 @@
-use crate::address::{Address, AddressError};
+use crate::address::{Address};
 use crate::format::Format;
 use crate::public_key::PublicKey;
-
-use crate::no_std::*;
+//use crate::{Error, error};
+use crate::{no_std::*, AddressError};
 use core::{
     fmt::{Debug, Display},
     str::FromStr,
@@ -25,30 +25,30 @@ pub trait PrivateKey: Clone + Debug + Display + FromStr + Send + Sync + 'static 
     fn to_address(&self, format: &Self::Format) -> Result<Self::Address, AddressError>;
 }
 
-#[derive(Debug, Fail)]
+#[derive(Debug, thiserror::Error)]
 pub enum PrivateKeyError {
-    #[fail(display = "{}: {}", _0, _1)]
+    #[error("{0}: {1}")]
     Crate(&'static str, String),
 
-    #[fail(display = "invalid byte length: {}", _0)]
+    #[error("invalid byte length: {0}")]
     InvalidByteLength(usize),
 
-    #[fail(display = "invalid character length: {}", _0)]
+    #[error("invalid character length: {0}")]
     InvalidCharacterLength(usize),
 
-    #[fail(display = "invalid private key checksum: {{ expected: {:?}, found: {:?} }}", _0, _1)]
+    #[error("invalid private key checksum: {{ expected: {0}, found: {1} }}")]
     InvalidChecksum(String, String),
 
-    #[fail(display = "invalid network: {{ expected: {:?}, found: {:?} }}", _0, _1)]
+    #[error("invalid network: {{ expected: {0}, found: {1} }}")]
     InvalidNetwork(String, String),
 
-    #[fail(display = "invalid private key prefix: {:?}", _0)]
+    #[error("invalid private key prefix: {0:?}")]
     InvalidPrefix(Vec<u8>),
 
-    #[fail(display = "{}", _0)]
+    #[error("{0}")]
     Message(String),
 
-    #[fail(display = "unsupported format")]
+    #[error("unsupported format")]
     UnsupportedFormat,
 }
 
@@ -70,11 +70,6 @@ impl From<base58::FromBase58Error> for PrivateKeyError {
     }
 }
 
-impl From<bech32::Error> for PrivateKeyError {
-    fn from(error: bech32::Error) -> Self {
-        PrivateKeyError::Crate("bech32", format!("{:?}", error))
-    }
-}
 
 impl From<hex::FromHexError> for PrivateKeyError {
     fn from(error: hex::FromHexError) -> Self {

@@ -4,12 +4,14 @@ use crate::format::EthereumFormat;
 use crate::network::EthereumNetwork;
 use crate::private_key::EthereumPrivateKey;
 use crate::public_key::EthereumPublicKey;
-use chainlib_core::{PrivateKey, PublicKey, Transaction, TransactionError, TransactionId,libsecp256k1,hex};
-
+use chainlib_core::{PublicKey, Transaction, TransactionId,libsecp256k1,hex, Error, TransactionError};
 use core::{fmt, marker::PhantomData, str::FromStr};
-use ethereum_types::U256;
+use chainlib_core::ethereum_types::U256;
 use rlp::{decode_list, RlpStream};
-use tiny_keccak::keccak256;
+use chainlib_core::utilities::crypto::keccak256;
+use ethabi::ethereum_types::H160;
+use ethabi::{Function, Param, ParamType, StateMutability, Token};
+
 
 pub fn to_bytes(value: u32) -> Result<Vec<u8>, TransactionError> {
     match value {
@@ -20,6 +22,12 @@ pub fn to_bytes(value: u32) -> Result<Vec<u8>, TransactionError> {
         // bounded by u32::max_value()
         _ => Ok(value.to_le_bytes().to_vec()),
     }
+}
+
+pub fn u256_to_bytes(value: &U256) -> Result<Vec<u8>, Error> {
+    let mut bytes : Vec<u8> = vec![];
+    value.to_big_endian(&mut bytes);
+    Ok(bytes)
 }
 
 pub fn from_bytes(value: &Vec<u8>) -> Result<u32, TransactionError> {
@@ -34,6 +42,24 @@ pub fn from_bytes(value: &Vec<u8>) -> Result<u32, TransactionError> {
         )),
     }
 }
+
+fn encode_transfer(func_name: &str, address: &EthereumAddress, amount: EthereumAmount) -> Vec<u8>{
+    let func = Function {
+        name: func_name.to_string(),
+        inputs: vec![
+            Param { name: "address".to_string(), kind: ParamType::Address, internal_type: None },
+            Param { name: "amount".to_string(), kind: ParamType::Uint(256), internal_type: None },
+        ],
+        outputs: vec![],
+        constant: None,
+        state_mutability: StateMutability::Payable,
+    };
+    let mut tokens = Vec::<Token>::new();
+    tokens.push(Token::Address(H160::from_slice(&address.to_bytes().unwrap())));
+    tokens.push(Token::Uint(amount.0));
+    func.encode_input(&tokens).unwrap()
+}
+
 
 /// Represents the parameters for an Ethereum transaction
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -113,12 +139,11 @@ impl<N: EthereumNetwork> Transaction for EthereumTransaction<N> {
     }
 
     /// Returns a signed transaction given the {r,s,recid}.
-    fn sign(&self, r: Vec<u8>, s: Vec<u8>, recid: u8)->Result<Self,TransactionError>{
+    fn sign(&mut self, rs: Vec<u8>, recid: u8) -> Result<Vec<u8>, TransactionError>{
         let mut transaction = self.clone();
         let message = libsecp256k1::Message::parse_slice(&self.to_transaction_id()?.txid)?;
         let recovery_id = libsecp256k1::RecoveryId::parse(recid)?;
-        let mut signature = r.clone();
-        signature.extend_from_slice(&s);
+        let signature = rs.clone();
 
         let public_key = EthereumPublicKey::from_secp256k1_public_key(libsecp256k1::recover(
             &message,
@@ -128,17 +153,17 @@ impl<N: EthereumNetwork> Transaction for EthereumTransaction<N> {
         transaction.sender = Some(public_key.to_address(&EthereumFormat::Standard)?);
         transaction.signature = Some(EthereumTransactionSignature {
             v: to_bytes(u32::from(recid) + N::CHAIN_ID * 2 + 35)?, // EIP155
-            r: r,
-            s: s,
+            r: rs[..32].to_vec(),
+            s: rs[32..64].to_vec(),
         });
-        Ok(transaction)
+        self.to_bytes()
     }
 
     /// Returns a signed transaction given the private key of the sender.
     /// https://github.com/ethereum/EIPs/blob/master/EIPS/eip-155.md
-    fn sign_with_private_key(&self, private_key: &Self::PrivateKey) -> Result<Self, TransactionError> {
+    fn sign_with_private_key(&mut self, private_key: &Self::PrivateKey) -> Result<Vec<u8>, TransactionError> {
         match (&self.sender, &self.signature) {
-            (Some(_), Some(_)) => Ok(self.clone()),
+            (Some(_), Some(_)) => self.to_bytes(),
             (Some(_), None) | (None, Some(_)) => Err(TransactionError::InvalidTransactionState),
             (None, None) => {
                 let (signature, v) = libsecp256k1::sign(
@@ -146,8 +171,8 @@ impl<N: EthereumNetwork> Transaction for EthereumTransaction<N> {
                     &private_key.to_secp256k1_secret_key(),
                 );
                 let signature = signature.serialize();
-
-                let mut transaction = self.clone();
+                self.sign(signature.to_vec(), v.into())
+                /*let mut transaction = self.clone();
                 let v: u8 = v.into();
                 transaction.sender = Some(private_key.to_address(&EthereumFormat::Standard)?);
                 transaction.signature = Some(EthereumTransactionSignature {
@@ -155,16 +180,15 @@ impl<N: EthereumNetwork> Transaction for EthereumTransaction<N> {
                     r: signature[0..32].to_vec(),
                     s: signature[32..64].to_vec(),
                 });
-                Ok(transaction)
+                Ok(transaction)*/
             }
         }
     }
 
     
-
     /// Returns a transaction given the transaction bytes.
     /// https://github.com/ethereum/EIPs/blob/master/EIPS/eip-155.md
-    fn from_transaction_bytes(transaction: &Vec<u8>) -> Result<Self, TransactionError> {
+    fn from_bytes(transaction: &Vec<u8>) -> Result<Self, TransactionError> {
         let list: Vec<Vec<u8>> = decode_list(&transaction);
         if list.len() != 9 {
             return Err(TransactionError::InvalidRlpLength(list.len()));
@@ -237,7 +261,7 @@ impl<N: EthereumNetwork> Transaction for EthereumTransaction<N> {
 
     /// Returns the transaction in bytes.
     /// https://github.com/ethereum/EIPs/blob/master/EIPS/eip-155.md
-    fn to_transaction_bytes(&self) -> Result<Vec<u8>, TransactionError> {
+    fn to_bytes(&self) -> Result<Vec<u8>, TransactionError> {
         // Returns an encoded transaction in Recursive Length Prefix (RLP) format.
         // https://github.com/ethereum/wiki/wiki/RLP
         fn encode_transaction(
@@ -281,8 +305,8 @@ impl<N: EthereumNetwork> Transaction for EthereumTransaction<N> {
         }
 
         match &self.signature {
-            Some(signature) => Ok(signed_transaction(&self.parameters, signature)?.out()),
-            None => Ok(raw_transaction::<N>(&self.parameters)?.out()),
+            Some(signature) => Ok(signed_transaction(&self.parameters, signature)?.out().to_vec()),
+            None => Ok(raw_transaction::<N>(&self.parameters)?.out().to_vec()),
         }
     }
 
@@ -290,7 +314,7 @@ impl<N: EthereumNetwork> Transaction for EthereumTransaction<N> {
     /// Otherwise, returns the hash of the raw transaction.
     fn to_transaction_id(&self) -> Result<Self::TransactionId, TransactionError> {
         Ok(Self::TransactionId {
-            txid: keccak256(&self.to_transaction_bytes()?).iter().cloned().collect(),
+            txid: keccak256(&self.to_bytes()?).iter().cloned().collect(),
         })
     }
 }
@@ -299,7 +323,7 @@ impl<N: EthereumNetwork> FromStr for EthereumTransaction<N> {
     type Err = TransactionError;
 
     fn from_str(transaction: &str) -> Result<Self, Self::Err> {
-        Self::from_transaction_bytes(&hex::decode(transaction)?)
+        Self::from_bytes(&hex::decode(transaction)?)
     }
 }
 
@@ -308,7 +332,7 @@ impl<N: EthereumNetwork> fmt::Display for EthereumTransaction<N> {
         write!(
             f,
             "0x{}",
-            &hex::encode(match self.to_transaction_bytes() {
+            &hex::encode(match self.to_bytes() {
                 Ok(transaction) => transaction,
                 _ => return Err(fmt::Error),
             })
@@ -349,12 +373,12 @@ mod tests {
             data: transaction.data.as_bytes().to_vec(),
         };
 
-        let transaction = EthereumTransaction::<N>::new(&parameters).unwrap();
+        let mut transaction = EthereumTransaction::<N>::new(&parameters).unwrap();
         let signed_transaction = transaction.sign_with_private_key(&private_key).unwrap();
-        assert_eq!(expected_signed_transaction, signed_transaction.to_string());
+        assert_eq!(expected_signed_transaction, transaction.to_string());
         assert_eq!(
             expected_signed_transaction_hash,
-            signed_transaction.to_transaction_id().unwrap().to_string()
+            transaction.to_transaction_id().unwrap().to_string()
         );
     }
 
@@ -370,17 +394,17 @@ mod tests {
             data: transaction.data.as_bytes().to_vec(),
         };
 
-        let transaction = EthereumTransaction::<N>::new(&parameters).unwrap();
+        let mut transaction = EthereumTransaction::<N>::new(&parameters).unwrap();
         let signed_transaction = transaction.sign_with_private_key(&private_key).unwrap();
 
         assert_eq!(None, transaction.sender);
         assert_eq!(
             private_key.to_address(&EthereumFormat::Standard).unwrap(),
-            signed_transaction.sender.clone().unwrap()
+            transaction.sender.clone().unwrap()
         );
 
         assert_eq!(parameters, transaction.parameters);
-        assert_eq!(expected_signed_transaction, signed_transaction.to_string());
+        assert_eq!(expected_signed_transaction, transaction.to_string());
     }
 
     fn test_from_transaction_bytes<N: EthereumNetwork>(transaction: &TransactionTestCase) {
@@ -396,10 +420,10 @@ mod tests {
         };
         let signed_transaction_bytes = hex::decode(&transaction.signed_transaction[2..]).unwrap();
 
-        let transaction = EthereumTransaction::<N>::from_transaction_bytes(&signed_transaction_bytes).unwrap();
+        let transaction = EthereumTransaction::<N>::from_bytes(&signed_transaction_bytes).unwrap();
         assert_eq!(expected_sender, transaction.sender);
         assert_eq!(expected_parameters, transaction.parameters);
-        assert_eq!(signed_transaction_bytes, transaction.to_transaction_bytes().unwrap());
+        assert_eq!(signed_transaction_bytes, transaction.to_bytes().unwrap());
     }
 
     fn test_to_transaction_bytes<N: EthereumNetwork>(transaction: &TransactionTestCase) {
@@ -414,11 +438,11 @@ mod tests {
             data: transaction.data.as_bytes().to_vec(),
         };
 
-        let transaction = EthereumTransaction::<N>::new(&parameters).unwrap();
+        let mut transaction = EthereumTransaction::<N>::new(&parameters).unwrap();
         let signed_transaction = transaction.sign_with_private_key(&private_key).unwrap();
         assert_eq!(
             expected_signed_transaction_bytes,
-            signed_transaction.to_transaction_bytes().unwrap()
+            transaction.to_bytes().unwrap()
         );
     }
 
@@ -434,11 +458,11 @@ mod tests {
             data: transaction.data.as_bytes().to_vec(),
         };
 
-        let transaction = EthereumTransaction::<N>::new(&parameters).unwrap();
+        let mut transaction = EthereumTransaction::<N>::new(&parameters).unwrap();
         let signed_transaction = transaction.sign_with_private_key(&private_key).unwrap();
         assert_eq!(
             expected_signed_transaction_hash,
-            signed_transaction.to_transaction_id().unwrap().to_string()
+            transaction.to_transaction_id().unwrap().to_string()
         );
     }
 
@@ -454,9 +478,9 @@ mod tests {
             data: transaction.data.as_bytes().to_vec(),
         };
 
-        let transaction = EthereumTransaction::<N>::new(&parameters).unwrap();
+        let mut transaction = EthereumTransaction::<N>::new(&parameters).unwrap();
         let signed_transaction = transaction.sign_with_private_key(&private_key).unwrap();
-        assert_eq!(expected_signed_transaction, signed_transaction.to_string());
+        assert_eq!(expected_signed_transaction, transaction.to_string());
     }
 
     mod mainnet {
@@ -852,5 +876,13 @@ mod tests {
                 .into_iter()
                 .for_each(test_to_string::<N>);
         }
+    }
+
+    #[test]
+    fn test_build_erc20_data() {
+        let address: EthereumAddress = "0xc88bd9efbe903c3c5527dc0f0bdee71729f72240".parse().unwrap();
+        let amount = EthereumAmount::from_wei("500032486").unwrap();
+        let bytes = encode_transfer("transfer", &address, amount);
+        println!("{}",hex::encode(bytes));
     }
 }

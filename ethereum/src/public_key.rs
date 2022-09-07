@@ -1,7 +1,7 @@
 use crate::address::EthereumAddress;
 use crate::format::EthereumFormat;
 use crate::private_key::EthereumPrivateKey;
-use chainlib_core::{Address, AddressError, PublicKey, PublicKeyError,libsecp256k1,hex};
+use chainlib_core::{Address, PublicKey, PublicKeyError,libsecp256k1,hex, Error, AddressError};
 
 use core::{fmt, fmt::Display, str::FromStr};
 
@@ -44,7 +44,7 @@ impl FromStr for EthereumPublicKey {
 
     fn from_str(public_key: &str) -> Result<Self, Self::Err> {
         Ok(Self(libsecp256k1::PublicKey::parse_slice(
-            hex::decode(format!("04{}", public_key).as_str())?.as_slice(),
+            hex::decode(public_key)?.as_slice(),
             None,
         )?))
     }

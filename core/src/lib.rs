@@ -13,7 +13,7 @@
 extern crate alloc;
 
 #[macro_use]
-extern crate failure;
+extern crate thiserror;
 
 pub mod no_std;
 
@@ -43,8 +43,12 @@ pub use self::transaction::*;
 pub mod utilities;
 pub use self::utilities::*;
 
+pub mod error;
+pub use error::*;
 
 //export common crate
 pub use libsecp256k1;
 
 pub use hex;
+
+pub use ethereum_types;

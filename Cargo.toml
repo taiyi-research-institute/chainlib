@@ -1,0 +1,15 @@
+[package]
+name = "chainlib"
+version = "0.0.1"
+
+[lib]
+path = "lib.rs"
+
+
+[dependencies]
+chainlib-core = { path="./core" }
+ethereum = { path="./ethereum" }
+tron = { path="./tron" }
+
+[workspace]
+members = [ "core","ethereum","tron" ]

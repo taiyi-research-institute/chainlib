@@ -218,8 +218,6 @@ mod tests {
         let addr_to = "TFk5LfscQv8hYM11mZYmi3ZcnRfFc4LLap";
         let amount = 10*1000000;
         let ct =  trx::build_transfer_contract(addr_from, addr_to, amount).unwrap();
-        //let json = protobuf::json print_to_string(&ct).unwrap();
-        //println!("{}",json);
         let mut param = TronTransactionParameters::default();
         param.set_timestamp(trx::timestamp_millis());
         param.set_ref_block(26661399, "000000000196d21784deb05dee04c69ed112b8e078e74019f9a0b1df6adc414e");

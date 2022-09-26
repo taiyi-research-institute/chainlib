@@ -24,6 +24,7 @@ sha2 = { version = "0.10.2", default-features = false }
 sha3 = "0.10.1"
 thiserror = "1.0"
 ethereum-types = "0.13.1"
+ripemd = "0.1.1"
 
 [features]
 default = ["std"]

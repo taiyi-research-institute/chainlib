@@ -13,35 +13,11 @@ use crate::protocol::Tron::transaction::{
 use chainlib_core::Error;
 use crate::TronAddress;
 use std::str::FromStr;
-use ethabi::ethereum_types::{U256, H160};
-use ethabi::{Function, Param, ParamType, StateMutability, Token, Uint};
+use ethabi::ethereum_types::U256;
 use crate::abi;
 
 pub fn timestamp_millis() -> i64 {
     Utc::now().timestamp_millis()
-}
-
-
-fn encode_transfer(func_name: &str, address: &TronAddress, amount: U256) -> Vec<u8>{
-    let func = Function {
-        name: func_name.to_string(),
-        inputs: vec![
-            Param { name: "address".to_string(), kind: ParamType::Address, internal_type: None },
-            Param { name: "amount".to_string(), kind: ParamType::Uint(256), internal_type: None },
-        ],
-        outputs: vec![],
-        constant: None,
-        state_mutability: StateMutability::Payable,
-    };
-    let mut data = Vec::from_iter(func.short_signature());
-    
-    data.extend_from_slice([0u8;11].as_slice());
-    data.extend_from_slice(address.as_bytes());
-    let mut amount_bytes = [0u8;32];
-   
-    amount.to_big_endian(amount_bytes.as_mut_slice());
-    data.extend_from_slice(amount_bytes.as_slice());
-    data
 }
 
 

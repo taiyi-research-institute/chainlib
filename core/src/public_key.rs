@@ -1,7 +1,7 @@
 use crate::address::{Address};
 use crate::format::Format;
 use crate::private_key::PrivateKey;
-use crate::{Error, AddressError};
+use crate::AddressError;
 use crate::no_std::*;
 use core::{
     fmt::{Debug, Display},

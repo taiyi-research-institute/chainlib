@@ -3,20 +3,20 @@ use chainlib_core::{utilities::crypto::keccak256, ethereum_types::U256};
 
 use crate::TronAddress;
 
-pub struct InputParam<'a> {
-    pub param_type: &'a str,
+pub struct InputParam {
+    pub param_type: String,
     pub param_value: Token
 }
 
-impl From<&TronAddress> for InputParam<'_> {
+impl From<&TronAddress> for InputParam {
     fn from(address: &TronAddress) -> Self {
-        InputParam{param_type: "address", param_value: address.to_token()}
+        InputParam{param_type: "address".to_string(), param_value: address.to_token()}
     }
 } 
 
-impl From<U256> for InputParam<'_> {
+impl From<U256> for InputParam {
     fn from(amount: U256) -> Self {
-        InputParam{param_type: "uint256", param_value: Token::Uint(amount)}
+        InputParam{param_type: "uint256".to_string(), param_value: Token::Uint(amount)}
     }
 } 
 
@@ -24,10 +24,9 @@ impl From<U256> for InputParam<'_> {
 pub fn encode_fn(name: &str, inputs: &[InputParam]) -> Vec<u8> {
     let mut data = Vec::<u8>::new();
     let param_types = inputs.iter().map(|input|{
-        input.param_type
+        input.param_type.as_str()
     }).collect::<Vec<&str>>().join(",");
     let function_selector = format!("{}({})", name, param_types);
-    println!("{}",function_selector);
     data.extend_from_slice( &keccak256(function_selector.as_bytes())[..4]);
     let tokens = inputs.iter().map(|input | input.param_value.clone()).collect::<Vec<Token>>();
     data.extend_from_slice(&encode(&tokens));

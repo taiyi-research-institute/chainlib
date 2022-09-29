@@ -14,14 +14,14 @@ impl PublicKey for EthereumPublicKey {
     type Format = EthereumFormat;
     type PrivateKey = EthereumPrivateKey;
 
-    /// Returns the address corresponding to the given public key.
+    /// Returns the public key corresponding to the given private key.
     fn from_private_key(private_key: &Self::PrivateKey) -> Self {
         Self(libsecp256k1::PublicKey::from_secret_key(
             &private_key.to_secp256k1_secret_key(),
         ))
     }
 
-    /// Returns the address of the corresponding private key.
+    /// Returns the address of this public key.
     fn to_address(&self, _format: &Self::Format) -> Result<Self::Address, AddressError> {
         EthereumAddress::from_public_key(self, _format)
     }
@@ -31,6 +31,10 @@ impl EthereumPublicKey {
     /// Returns a public key given a secp256k1 public key.
     pub fn from_secp256k1_public_key(public_key: libsecp256k1::PublicKey) -> Self {
         Self(public_key)
+    }
+
+    pub fn from_slice(sl: &[u8]) -> Self {
+        Self(libsecp256k1::PublicKey::parse_slice(sl, None).unwrap())
     }
 
     /// Returns the secp256k1 public key of the public key
@@ -176,5 +180,22 @@ mod tests {
 
         let public_key = "06d68e391c6961fceb5d8c5ad8ee5c6346db24df9dae61c9c0b0142409760451d982c0f35931f33e57adfc4f11bdf1946be2d75d6ecc925e8d22f319c71a721c06d68e391c6961fceb5d8c5ad8ee5c6346db24df9dae61c9c0b0142409760451d982c0f35931f33e57adfc4f11bdf1946be2d75d6ecc925e8d22f319c71a721c";
         assert!(EthereumPublicKey::from_str(public_key).is_err());
+    }
+
+    #[test]
+    fn address_gen() {
+        let raw_pk = [68,157,12,4,213,228,35,105,155,249,86,130,216,186,113,85,31,137,113,153,70,239,218,142,132,65,222,134,52,145,148,88,63,245,105,222,219,39,56,192,195,4,38,29,9,78,172,238,179,168,66,80,132,123,45,104,145,132,159,243,144,62,194,164];
+        let raw_pk1 = [117,243,73,0,152,143,226,83,116,252,10,247,191,14,206,13,110,192,140,32,250,238,177,101,109,113,26,254,67,191,47,11,155,57,117,158,227,111,235,20,65,167,102,64,98,103,106,226,241,213,193,36,72,57,163,202,72,21,35,233,194,163,225,28];
+
+        let pk = EthereumPublicKey::from_slice(&raw_pk);
+        let pk1 = EthereumPublicKey::from_slice(&raw_pk1);
+
+        let addr = pk.to_address(&EthereumFormat::Standard).unwrap();
+        let addr1 = pk1.to_address(&EthereumFormat::Standard).unwrap();
+
+        println!("address for {:?} is {}", raw_pk, addr);
+        println!();
+        println!("address for {:?} is {}", raw_pk1, addr1);
+        println!();
     }
 }

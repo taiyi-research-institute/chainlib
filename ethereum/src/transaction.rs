@@ -732,7 +732,7 @@ mod tests {
             let to = cl;
             let value = "500"; // finney
             let gas = U256::from(300000);
-            let gas_price = U256::from_str("0x47868caa").unwrap();
+            let gas_price = U256::from_str(&node.gas_price()).unwrap();
             let nonce = U256::from_str(&node.nonce(aya)).unwrap();
 
             let tx_params = EthereumTransactionParameters {

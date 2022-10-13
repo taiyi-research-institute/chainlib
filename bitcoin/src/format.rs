@@ -11,6 +11,8 @@ use serde::Serialize;
 pub enum BitcoinFormat {
     /// Pay-to-Pubkey Hash, e.g. 1NoZQSmjYHUZMbqLerwmT4xfe8A6mAo8TT
     P2PKH,
+    /// Pay-to-Script Hash, e.g. 34AgLJhwXrvmkZS1o5TrcdeevMt22Nar53
+    //P2SH,
     /// Pay-to-Witness-Script Hash, e.g. bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3
     P2WSH,
     /// SegWit Pay-to-Witness-Public-Key Hash, e.g. 34AgLJhwXrvmkZS1o5TrcdeevMt22Nar53

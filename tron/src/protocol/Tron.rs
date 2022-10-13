@@ -23,7 +23,7 @@
 
 /// Generated files are compatible only with the same version
 /// of protobuf runtime.
-const _PROTOBUF_VERSION_CHECK: () = ::protobuf::VERSION_3_1_0;
+const _PROTOBUF_VERSION_CHECK: () = ::protobuf::VERSION_3_2_0;
 
 ///  AccountId, (name, address) use name, (null, address) use address, (name, null) use name,
 #[derive(PartialEq,Clone,Default,Debug)]

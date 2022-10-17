@@ -60,7 +60,6 @@ fn encode_transfer(func_name: &str, address: &EthereumAddress, amount: EthereumA
     func.encode_input(&tokens).unwrap()
 }
 
-
 /// Represents the parameters for an Ethereum transaction
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct EthereumTransactionParameters {
@@ -144,11 +143,13 @@ impl<N: EthereumNetwork> Transaction for EthereumTransaction<N> {
         let recovery_id = libsecp256k1::RecoveryId::parse(recid)?;
         let signature = rs.clone();
 
-        let public_key = EthereumPublicKey::from_secp256k1_public_key(libsecp256k1::recover(
-            &message,
-            &libsecp256k1::Signature::parse_standard_slice(signature.as_slice())?,
-            &recovery_id,
-        )?);
+        let public_key = EthereumPublicKey::from_secp256k1_public_key(
+            libsecp256k1::recover(
+                &message,
+                &libsecp256k1::Signature::parse_standard_slice(signature.as_slice())?,
+                &recovery_id,
+            )?
+        );
         self.sender = Some(public_key.to_address(&EthereumFormat::Standard)?);
         self.signature = Some(EthereumTransactionSignature {
             v: to_bytes(u32::from(recid) + N::CHAIN_ID * 2 + 35)?, // EIP155
@@ -183,7 +184,6 @@ impl<N: EthereumNetwork> Transaction for EthereumTransaction<N> {
             }
         }
     }
-
     
     /// Returns a transaction given the transaction bytes.
     /// https://github.com/ethereum/EIPs/blob/master/EIPS/eip-155.md

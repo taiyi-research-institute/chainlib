@@ -10,6 +10,7 @@ chainlib-core = { path ="./core" }
 bitcoin = { path = "./bitcoin" }
 ethereum = { path = "./ethereum" }
 tron = { path = "./tron" }
+filecoin = { path = "./filecoin" }
 
 [workspace]
 members = [
@@ -17,4 +18,5 @@ members = [
     "bitcoin",
     "ethereum",
     "tron",
+    "filecoin"
 ]

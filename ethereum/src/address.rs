@@ -25,6 +25,7 @@ impl Address for EthereumAddress {
 
     /// Returns the address corresponding to the given public key.
     fn from_public_key(public_key: &Self::PublicKey, _: &Self::Format) -> Result<Self, AddressError> {
+        // public_key.from_private_key();
         Ok(Self::checksum_address(public_key))
     }
 }
@@ -49,7 +50,7 @@ impl EthereumAddress {
         EthereumAddress(checksum_address)
     }
 
-    pub fn to_bytes(&self) -> Result<Vec<u8> ,Error> {
+    pub fn to_bytes(&self) -> Result<Vec<u8>, Error> {
         let regex = Regex::new(r"^0x").unwrap();
         let address = self.0.clone();
         let address = address.to_lowercase();

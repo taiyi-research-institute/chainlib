@@ -38,6 +38,10 @@ pub fn to_basic_unit(value: &str, mut denomination: u32) -> String {
                     println!("duplicate decimal point");
                     return "".to_string();
                 }
+                if cnt == 0 {
+                    // the decimal point is at the front, indicating the value is 0
+                    return "0".to_string();
+                }
                 has_point = true;
                 point = cnt;
             }

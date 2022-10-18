@@ -1,4 +1,4 @@
-use chainlib_core::{Amount, AmountError};
+use chainlib_core::{Amount, AmountError, to_basic_unit as to_wei};
 
 use core::fmt;
 use chainlib_core::ethereum_types::U256;
@@ -71,37 +71,43 @@ impl EthereumAmount {
     }
 
     pub fn from_kwei(kwei_value: &str) -> Result<Self, AmountError> {
-        let wei = Self::u256_from_str(kwei_value)? * 10_i64.pow(Denomination::Kwei.precision());
+        let wei_value = to_wei(kwei_value, Denomination::Kwei.precision());
+        let wei = Self::u256_from_str(&wei_value)?;
 
         Ok(Self::from_u256(wei))
     }
 
     pub fn from_mwei(mwei_value: &str) -> Result<Self, AmountError> {
-        let wei = Self::u256_from_str(mwei_value)? * 10_i64.pow(Denomination::Mwei.precision());
+        let wei_value = to_wei(mwei_value, Denomination::Mwei.precision());
+        let wei = Self::u256_from_str(&wei_value)?;
 
         Ok(Self::from_u256(wei))
     }
 
     pub fn from_gwei(gwei_value: &str) -> Result<Self, AmountError> {
-        let wei = Self::u256_from_str(gwei_value)? * 10_i64.pow(Denomination::Gwei.precision());
+        let wei_value = to_wei(gwei_value, Denomination::Gwei.precision());
+        let wei = Self::u256_from_str(&wei_value)?;
 
         Ok(Self::from_u256(wei))
     }
 
     pub fn from_szabo(szabo_value: &str) -> Result<Self, AmountError> {
-        let wei = Self::u256_from_str(szabo_value)? * 10_i64.pow(Denomination::Szabo.precision());
+        let wei_value = to_wei(szabo_value, Denomination::Szabo.precision());
+        let wei = Self::u256_from_str(&wei_value)?;
 
         Ok(Self::from_u256(wei))
     }
 
     pub fn from_finney(finney_value: &str) -> Result<Self, AmountError> {
-        let wei = Self::u256_from_str(finney_value)? * 10_i64.pow(Denomination::Finney.precision());
+        let wei_value = to_wei(finney_value, Denomination::Finney.precision());
+        let wei = Self::u256_from_str(&wei_value)?;
 
         Ok(Self::from_u256(wei))
     }
 
     pub fn from_eth(eth_value: &str) -> Result<Self, AmountError> {
-        let wei = Self::u256_from_str(eth_value)? * 10_i64.pow(Denomination::Ether.precision());
+        let wei_value = to_wei(eth_value, Denomination::Ether.precision());
+        let wei = Self::u256_from_str(&wei_value)?;
 
         Ok(Self::from_u256(wei))
     }

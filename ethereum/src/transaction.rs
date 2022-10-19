@@ -61,7 +61,7 @@ fn encode_transfer(func_name: &str, address: &EthereumAddress, amount: EthereumA
 }
 
 /// Represents the parameters for an Ethereum transaction
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct EthereumTransactionParameters {
     /// The address of the receiver
     pub receiver: EthereumAddress,
@@ -103,7 +103,7 @@ impl fmt::Display for EthereumTransactionId {
 }
 
 /// Represents an Ethereum transaction
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct EthereumTransaction<N: EthereumNetwork> {
     /// The address of the sender
     sender: Option<EthereumAddress>,

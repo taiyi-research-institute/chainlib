@@ -11,7 +11,7 @@ use ethabi::Token;
 
 const ADDRESS_TYPE_PREFIX: u8 = 0x41;
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Hash)]
+#[derive(Clone, PartialEq, Eq, Serialize, Hash)]
 pub struct TronAddress([u8; 21]);
 
 impl Address for TronAddress{

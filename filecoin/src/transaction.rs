@@ -1,5 +1,5 @@
 use crate::address::FilecoinAddress;
-use crate::address::Address;
+use crate::amount::FilecoinAmount;
 use crate::address::ADDRESS_ENCODER as BASE32_ENCODER;
 use crate::format::FilecoinFormat;
 use crate::private_key::FilecoinPrivateKey;
@@ -12,7 +12,6 @@ use fvm_ipld_encoding::ser::{Serialize, Serializer};
 use fvm_ipld_encoding::{de, ser, serde_bytes, Cbor, RawBytes, to_vec};
 
 use fvm_shared::bigint::bigint_ser::{BigIntDe, BigIntSer};
-use fvm_shared::econ::TokenAmount;
 use fvm_shared::MethodNum;
 use num_derive::FromPrimitive;
 use forest_encoding::tuple::*;
@@ -26,15 +25,15 @@ use std::borrow::Cow;
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 pub struct FilecoinTransactionParameters {
     pub version: i64,
-    pub from: Address,
-    pub to: Address,
+    pub from: FilecoinAddress,
+    pub to: FilecoinAddress,
     pub sequence: u64,
-    pub value: TokenAmount,
+    pub value: FilecoinAmount,
     pub method_num: MethodNum,
     pub params: RawBytes,
     pub gas_limit: i64,
-    pub gas_fee_cap: TokenAmount,
-    pub gas_premium: TokenAmount,
+    pub gas_fee_cap: FilecoinAmount,
+    pub gas_premium: FilecoinAmount,
 }
 
 impl Cbor for FilecoinTransactionParameters {}

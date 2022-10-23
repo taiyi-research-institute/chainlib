@@ -21,7 +21,7 @@ pub fn func_selector(func_signature: &str) -> [u8;4] {
 }
 
 /// The interface for a generic transaction id.
-pub trait TransactionId: Clone + Debug + Display + Send + Sync + 'static + Eq + Ord + Sized + Hash {}
+pub trait TransactionId: Clone + Debug + Display + Send + Sync + 'static + Eq + Sized + Hash {}
 
 /// The interface for a generic transactions.
 pub trait Transaction: Clone + Send + Sync + 'static {

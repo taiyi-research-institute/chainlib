@@ -43,7 +43,7 @@ pub fn from_bytes(value: &Vec<u8>) -> Result<u32, TransactionError> {
     }
 }
 
-fn encode_transfer(func_name: &str, address: &EthereumAddress, amount: EthereumAmount) -> Vec<u8>{
+pub fn encode_transfer(func_name: &str, address: &EthereumAddress, amount: U256) -> Vec<u8>{
     let func = Function {
         name: func_name.to_string(),
         inputs: vec![
@@ -56,10 +56,9 @@ fn encode_transfer(func_name: &str, address: &EthereumAddress, amount: EthereumA
     };
     let mut tokens = Vec::<Token>::new();
     tokens.push(Token::Address(H160::from_slice(&address.to_bytes().unwrap())));
-    tokens.push(Token::Uint(amount.0));
+    tokens.push(Token::Uint(amount));
     func.encode_input(&tokens).unwrap()
 }
-
 
 /// Represents the parameters for an Ethereum transaction
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -112,7 +111,6 @@ pub struct EthereumTransaction<N: EthereumNetwork> {
     parameters: EthereumTransactionParameters,
     /// The transaction signature
     signature: Option<EthereumTransactionSignature>,
-    /// PhantomData
     _network: PhantomData<N>,
 }
 
@@ -144,11 +142,13 @@ impl<N: EthereumNetwork> Transaction for EthereumTransaction<N> {
         let recovery_id = libsecp256k1::RecoveryId::parse(recid)?;
         let signature = rs.clone();
 
-        let public_key = EthereumPublicKey::from_secp256k1_public_key(libsecp256k1::recover(
-            &message,
-            &libsecp256k1::Signature::parse_standard_slice(signature.as_slice())?,
-            &recovery_id,
-        )?);
+        let public_key = EthereumPublicKey::from_secp256k1_public_key(
+            libsecp256k1::recover(
+                &message,
+                &libsecp256k1::Signature::parse_standard_slice(signature.as_slice())?,
+                &recovery_id,
+            )?
+        );
         self.sender = Some(public_key.to_address(&EthereumFormat::Standard)?);
         self.signature = Some(EthereumTransactionSignature {
             v: to_bytes(u32::from(recid) + N::CHAIN_ID * 2 + 35)?, // EIP155
@@ -171,19 +171,9 @@ impl<N: EthereumNetwork> Transaction for EthereumTransaction<N> {
                 );
                 let signature = signature.serialize();
                 self.sign(signature.to_vec(), v.into())
-                /*let mut transaction = self.clone();
-                let v: u8 = v.into();
-                transaction.sender = Some(private_key.to_address(&EthereumFormat::Standard)?);
-                transaction.signature = Some(EthereumTransactionSignature {
-                    v: to_bytes(u32::from(v) + N::CHAIN_ID * 2 + 35)?, // EIP155
-                    r: signature[0..32].to_vec(),
-                    s: signature[32..64].to_vec(),
-                });
-                Ok(transaction)*/
             }
         }
     }
-
     
     /// Returns a transaction given the transaction bytes.
     /// https://github.com/ethereum/EIPs/blob/master/EIPS/eip-155.md
@@ -345,78 +335,6 @@ mod tests {
     use crate::network::EthereumNetwork;
     use crate::{Goerli, Kovan, Mainnet, Rinkeby, Ropsten};
     use chainlib_core::{PrivateKey, Transaction};
-
-    struct EthNode {
-        provider: &'static str,
-    }
-    
-    impl EthNode {
-        fn new(s: &'static str) -> Self {
-            Self {provider: s}
-        }
-    
-        fn provider(s: &'static str) -> Self {
-            Self::new(s)
-        }
-    
-        fn url(s: &'static str) -> Self {
-            Self::new(s)
-        }
-    
-        fn extract_result(resp: &String) -> String {
-            let start = resp.find("0x").unwrap();
-            let substr = &resp[start..];
-            let end = substr.find("\"").unwrap();
-            String::from_str(&substr[..end]).unwrap()
-        }
-    
-        fn do_request(&self, req: &String) -> String {
-            let resp = ureq::post(self.provider)
-                .send(req.as_bytes())
-                .unwrap();
-            let resp = resp.into_string().unwrap();
-            resp
-        }
-    
-        fn send_tx(&self, rlp_hex: &String) -> String {
-            let req = r#"{
-                "jsonrpc": "2.0",
-                "method": "eth_sendRawTransaction",
-                "params": [
-                    "0x"#.to_owned() + rlp_hex + r#""
-                ],
-                "id": 1
-            }"#;
-            self.do_request(&req)
-        }
-    
-        fn nonce(&self, address: &str) -> String {
-            let req = r#"{
-                "jsonrpc": "2.0",
-                "method": "eth_getTransactionCount",
-                "params": [
-                    ""#.to_owned() + address + r#"",
-                    "latest"
-                ],
-                "id": 1
-            }"#;
-            let resp = self.do_request(&req);
-            println!("{:?}", resp);
-            Self::extract_result(&resp)
-        }
-    
-        fn gas_price(&self) -> String {
-            let req = r#"{
-                "jsonrpc": "2.0",
-                "method": "eth_gasPrice",
-                "params": [],
-                "id": 1
-            }"#;
-            let resp = self.do_request(&String::from_str(req).unwrap());
-            println!("{:?}", resp);
-            Self::extract_result(&resp)
-        }
-    }
 
     pub struct TransactionTestCase {
         pub nonce: &'static str,
@@ -705,62 +623,6 @@ mod tests {
                 .into_iter()
                 .for_each(test_to_string::<N>);
         }
-
-        #[test]
-        fn send_tx() {
-            let node = "https://eth-rinkeby.alchemyapi.io/v2/cATcZ7I4hppk5euFxAro4MjICTUM4mhF";
-            let node = EthNode::new(node);
-
-            fn mpc_sign(txid: &EthereumTransactionId) -> (Vec<u8>, u8) {
-                let r = "a86ca64224890bced7223373fc2bac766358ba51a73eb2dd15b123ec853ec68e";
-                let s = "773aa322154bc6c861c8b5b5c00a79165ff36499a48e399d55f31a3ad1f6a8d1";
-                let recid = 1;
-
-                let mut r = hex::decode(r).unwrap();
-                let mut s = hex::decode(s).unwrap();
-                r.append(&mut s);
-
-                (r, recid)
-            }
-
-            let cl = "0xE28D6881aC932066611A259a8C343E545b0b55B7";
-            let aya = "0xCd28AF3e09527D2a756F1e7c7aD7A8A9BdEB080d";
-            
-            let key_cl = "8e11a0e57b71de6508e661e09e86a03aba4cb4baa069a06bbf55ecbf47fdf07a";
-            let key_aya = "b2ad0aaa48a383a1fe45d3a3894720a9f0154b3bc3d783259d7758a7cfc3ce8a";
-
-            let to = cl;
-            let value = "500"; // finney
-            let gas = U256::from(300000);
-            let gas_price = U256::from_str(&node.gas_price()).unwrap();
-            let nonce = U256::from_str(&node.nonce(aya)).unwrap();
-
-            let tx_params = EthereumTransactionParameters {
-                receiver: EthereumAddress::from_str(to).unwrap(),
-                amount: EthereumAmount::from_szabo(value).unwrap(),
-                gas: gas,
-                gas_price: EthereumAmount(gas_price),
-                nonce: nonce,
-                data: Vec::new(),
-            };
-
-            let mut tx = EthereumTransaction::<Rinkeby>::new(&tx_params).unwrap();
-            let sighash = tx.to_transaction_id().unwrap();
-            
-            println!("sighash = {}", sighash);
-            // let tx_rlp = tx.sign_with_private_key(
-            //     &EthereumPrivateKey::from_str(key_aya).unwrap()
-            // ).unwrap();
-
-            let (sig, recid) = mpc_sign(&sighash);
-            let tx_rlp = tx.sign(sig, recid).unwrap();
-            let hex_stream = hex::encode(tx_rlp);
-
-            println!("hex stream = {:?}", hex_stream);
-            
-            // let res = node.send_tx(&hex_stream);
-            // println!("{:?}", res);
-        }
     }
 
     mod ropsten {
@@ -1008,7 +870,7 @@ mod tests {
     #[test]
     fn test_build_erc20_data() {
         let address: EthereumAddress = "0xc88bd9efbe903c3c5527dc0f0bdee71729f72240".parse().unwrap();
-        let amount = EthereumAmount::from_wei("500032486").unwrap();
+        let amount = U256::from_dec_str("500032486").unwrap();
         let bytes = encode_transfer("transfer", &address, amount);
         println!("{}",hex::encode(bytes));
     }

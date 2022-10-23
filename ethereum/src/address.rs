@@ -5,12 +5,12 @@ use chainlib_core::{to_hex_string, Address, PrivateKey, Error, AddressError};
 
 use core::{convert::TryFrom, fmt, str::FromStr};
 use regex::Regex;
-use serde::Serialize;
+use serde::{Serialize, Deserialize};
 use chainlib_core::utilities::crypto::keccak256;
 use chainlib_core::hex;
 
 /// Represents an Ethereum address
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Hash)]
 pub struct EthereumAddress(String);
 
 impl Address for EthereumAddress {
@@ -25,6 +25,7 @@ impl Address for EthereumAddress {
 
     /// Returns the address corresponding to the given public key.
     fn from_public_key(public_key: &Self::PublicKey, _: &Self::Format) -> Result<Self, AddressError> {
+        // public_key.from_private_key();
         Ok(Self::checksum_address(public_key))
     }
 }
@@ -49,7 +50,7 @@ impl EthereumAddress {
         EthereumAddress(checksum_address)
     }
 
-    pub fn to_bytes(&self) -> Result<Vec<u8> ,Error> {
+    pub fn to_bytes(&self) -> Result<Vec<u8>, Error> {
         let regex = Regex::new(r"^0x").unwrap();
         let address = self.0.clone();
         let address = address.to_lowercase();

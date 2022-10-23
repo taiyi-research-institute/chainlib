@@ -216,9 +216,6 @@ impl From<serde_json::error::Error> for TransactionError {
     }
 }
 
-
-
-
 #[cfg(test)]
 mod tests{
     use crate::func_selector;

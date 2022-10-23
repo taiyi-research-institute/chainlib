@@ -1,7 +1,7 @@
 use crate::address::EthereumAddress;
 use crate::format::EthereumFormat;
 use crate::public_key::EthereumPublicKey;
-use chainlib_core::{Address, PrivateKey, PrivateKeyError, PublicKey,libsecp256k1,hex, Error, AddressError};
+use chainlib_core::{Address, PrivateKey, PrivateKeyError, PublicKey, libsecp256k1, hex, Error, AddressError};
 
 use core::{fmt, fmt::Display, str::FromStr};
 use rand::Rng;
@@ -24,12 +24,12 @@ impl PrivateKey for EthereumPrivateKey {
 
     /// Returns the public key of the corresponding Ethereum private key.
     fn to_public_key(&self) -> Self::PublicKey {
-        EthereumPublicKey::from_private_key(self)
+        PublicKey::from_private_key(self)
     }
 
     /// Returns the address of the corresponding Ethereum private key.
     fn to_address(&self, _format: &Self::Format) -> Result<Self::Address, AddressError> {
-        EthereumAddress::from_private_key(self, _format)
+        Address::from_private_key(self, _format)
     }
 }
 

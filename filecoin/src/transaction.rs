@@ -172,13 +172,6 @@ impl<'de> de::Deserialize<'de> for FilecoinSignature {
     }
 }
 
-/// Represents a wrapped filecoin transaction with signature bytes.
-#[derive(PartialEq, Clone, Debug, Serialize_tuple, Deserialize_tuple, Hash, Eq, Default)]
-pub struct FilecoinTransaction {
-    pub params: FilecoinTransactionParameters,
-    pub signature: FilecoinSignature,
-}
-
 /// Represents a filecoin transaction id
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub struct FilecoinTransactionId {
@@ -192,6 +185,15 @@ impl fmt::Display for FilecoinTransactionId {
         write!(f, "{}", &BASE32_ENCODER.encode(&self.hash[..]))
     }
 }
+
+/// Represents a wrapped filecoin transaction with signature bytes.
+#[derive(PartialEq, Clone, Debug, Serialize_tuple, Deserialize_tuple, Hash, Eq, Default)]
+pub struct FilecoinTransaction {
+    pub params: FilecoinTransactionParameters,
+    pub signature: FilecoinSignature,
+}
+
+impl Cbor for FilecoinTransaction {}
 
 impl Transaction for FilecoinTransaction {
     type Address = FilecoinAddress;
@@ -233,7 +235,7 @@ impl Transaction for FilecoinTransaction {
     }
 
     fn to_bytes(&self) -> Result<Vec<u8>, TransactionError> {
-        Ok(to_vec(self).unwrap())
+        Ok(serde_json::to_string(&json::FilecoinTransactionJsonRef(self))?.as_bytes().to_vec())
     }
 
     fn to_transaction_id(&self) -> Result<Self::TransactionId, TransactionError> {
@@ -241,5 +243,383 @@ impl Transaction for FilecoinTransaction {
         Ok(FilecoinTransactionId{
             hash: blake2b_256(&stream[..]).to_vec(),
         })
+    }
+}
+
+pub mod json {
+    use super::*;
+    use serde::{ser, Deserialize, Deserializer, Serialize, Serializer};
+    use cid::Cid;
+
+    /// Wrapper for serializing and de-serializing a `FilecoinTransaction` from JSON.
+    #[derive(Deserialize, Serialize)]
+    #[serde(transparent)]
+    pub struct FilecoinTransactionJson(#[serde(with = "self")] pub FilecoinTransaction);
+
+    /// Wrapper for serializing a `FilecoinTransaction` reference to JSON.
+    #[derive(Serialize)]
+    #[serde(transparent)]
+    pub struct FilecoinTransactionJsonRef<'a>(#[serde(with = "self")] pub &'a FilecoinTransaction);
+
+    impl From<FilecoinTransactionJson> for FilecoinTransaction {
+        fn from(wrapper: FilecoinTransactionJson) -> Self {
+            wrapper.0
+        }
+    }
+
+    impl From<FilecoinTransaction> for FilecoinTransactionJson {
+        fn from(tx: FilecoinTransaction) -> Self {
+            FilecoinTransactionJson(tx)
+        }
+    }
+
+    pub fn serialize<S>(tx: &FilecoinTransaction, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        #[derive(Serialize)]
+        #[serde(rename_all = "PascalCase")]
+        struct FilecoinTransactionSer<'a> {
+            #[serde(with = "parameter_json")]
+            message: &'a FilecoinTransactionParameters,
+            #[serde(with = "signature_json")]
+            signature: &'a FilecoinSignature,
+            #[serde(default, rename = "CID", with = "cid_json::opt")]
+            cid: Option<Cid>,
+        }
+        FilecoinTransactionSer {
+            message: &tx.params,
+            signature: &tx.signature,
+            cid: Some(tx.cid().map_err(ser::Error::custom)?),
+        }
+        .serialize(serializer)
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<FilecoinTransaction, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        #[derive(Serialize, Deserialize)]
+        #[serde(rename_all = "PascalCase")]
+        struct FilecoinTransactionDe {
+            #[serde(with = "parameter_json")]
+            message: FilecoinTransactionParameters,
+            #[serde(with = "signature_json")]
+            signature: FilecoinSignature,
+        }
+        let FilecoinTransactionDe { message, signature } = Deserialize::deserialize(deserializer)?;
+        Ok(FilecoinTransaction { params: message, signature })
+    }
+}
+
+pub mod parameter_json {
+    use cid::Cid;
+    use super::address_json::AddressJson;
+    use super::amount_json;
+    use super::cid_json;
+    use super::Cbor;
+    use super::RawBytes;
+    use super::FilecoinAmount;
+    use super::FilecoinTransactionParameters;
+    use serde::{de, ser, Deserialize, Deserializer, Serialize, Serializer};
+
+    /// Wrapper for serializing and de-serializing a Message from JSON.
+    #[derive(Deserialize, Serialize, Debug)]
+    #[serde(transparent)]
+    pub struct ParameterJson(#[serde(with = "self")] pub FilecoinTransactionParameters);
+
+    /// Wrapper for serializing a Message reference to JSON.
+    #[derive(Serialize)]
+    #[serde(transparent)]
+    pub struct ParameterJsonRef<'a>(#[serde(with = "self")] pub &'a FilecoinTransactionParameters);
+
+    impl From<ParameterJson> for FilecoinTransactionParameters {
+        fn from(wrapper: ParameterJson) -> Self {
+            wrapper.0
+        }
+    }
+
+    impl From<FilecoinTransactionParameters> for ParameterJson {
+        fn from(wrapper: FilecoinTransactionParameters) -> Self {
+            ParameterJson(wrapper)
+        }
+    }
+
+    #[derive(Serialize, Deserialize)]
+    #[serde(rename_all = "PascalCase")]
+    struct JsonHelper {
+        version: i64,
+        to: AddressJson,
+        from: AddressJson,
+        #[serde(rename = "Nonce")]
+        sequence: u64,
+        #[serde(with = "amount_json")]
+        value: FilecoinAmount,
+        gas_limit: i64,
+        #[serde(with = "amount_json")]
+        gas_fee_cap: FilecoinAmount,
+        #[serde(with = "amount_json")]
+        gas_premium: FilecoinAmount,
+        #[serde(rename = "Method")]
+        method_num: u64,
+        params: Option<String>,
+        #[serde(default, rename = "CID", with = "cid_json::opt")]
+        cid: Option<Cid>,
+    }
+
+    pub fn serialize<S>(params: &FilecoinTransactionParameters, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        JsonHelper {
+            version: params.version,
+            to: params.to.into(),
+            from: params.from.into(),
+            sequence: params.sequence,
+            value: params.value.clone(),
+            gas_limit: params.gas_limit,
+            gas_fee_cap: params.gas_fee_cap.clone(),
+            gas_premium: params.gas_premium.clone(),
+            method_num: params.method_num,
+            params: Some(base64::encode(params.params.bytes())),
+            cid: Some(params.cid().map_err(ser::Error::custom)?),
+        }
+        .serialize(serializer)
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<FilecoinTransactionParameters, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let m: JsonHelper = Deserialize::deserialize(deserializer)?;
+        Ok(FilecoinTransactionParameters {
+            version: m.version,
+            to: m.to.into(),
+            from: m.from.into(),
+            sequence: m.sequence,
+            value: m.value,
+            gas_limit: m.gas_limit,
+            gas_fee_cap: m.gas_fee_cap,
+            gas_premium: m.gas_premium,
+            method_num: m.method_num,
+            params: RawBytes::new(
+                base64::decode(&m.params.unwrap_or_default()).map_err(de::Error::custom)?,
+            ),
+        })
+    }
+}
+
+pub mod signature_json {
+    use super::{FilecoinSignature, FilecoinSignatureType};
+    use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
+
+    // Wrapper for serializing and deserializing a Signature from JSON.
+    #[derive(Deserialize, Serialize)]
+    #[serde(transparent)]
+    pub struct SignatureJson(#[serde(with = "self")] pub FilecoinSignature);
+
+    /// Wrapper for serializing a Signature reference to JSON.
+    #[derive(Serialize)]
+    #[serde(transparent)]
+    pub struct SignatureJsonRef<'a>(#[serde(with = "self")] pub &'a FilecoinSignature);
+
+    #[derive(Serialize, Deserialize)]
+    struct JsonHelper {
+        #[serde(rename = "Type")]
+        sig_type: FilecoinSignatureType,
+        #[serde(rename = "Data")]
+        bytes: String,
+    }
+
+    pub fn serialize<S>(sig: &FilecoinSignature, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        JsonHelper {
+            sig_type: sig.sig_type,
+            bytes: base64::encode(&sig.bytes),
+        }
+        .serialize(serializer)
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<FilecoinSignature, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let JsonHelper { sig_type, bytes } = Deserialize::deserialize(deserializer)?;
+        Ok(FilecoinSignature {
+            sig_type,
+            bytes: base64::decode(bytes).map_err(de::Error::custom)?,
+        })
+    }
+
+    pub mod signature_type {
+        use super::*;
+        use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
+        #[derive(Debug, Deserialize, Serialize)]
+        #[serde(rename_all = "lowercase")]
+        enum JsonHelperEnum {
+            Bls,
+            Secp256k1,
+        }
+
+        #[derive(Debug, Serialize, Deserialize)]
+        #[serde(transparent)]
+        pub struct SignatureTypeJson(#[serde(with = "self")] pub FilecoinSignatureType);
+
+        pub fn serialize<S>(sig_type: &FilecoinSignatureType, serializer: S) -> Result<S::Ok, S::Error>
+        where
+            S: Serializer,
+        {
+            let json = match sig_type {
+                FilecoinSignatureType::BLS => JsonHelperEnum::Bls,
+                FilecoinSignatureType::Secp256k1 => JsonHelperEnum::Secp256k1,
+            };
+            json.serialize(serializer)
+        }
+
+        pub fn deserialize<'de, D>(deserializer: D) -> Result<FilecoinSignatureType, D::Error>
+        where
+            D: Deserializer<'de>,
+        {
+            let json_enum: JsonHelperEnum = Deserialize::deserialize(deserializer)?;
+
+            let signature_type = match json_enum {
+                JsonHelperEnum::Bls => FilecoinSignatureType::BLS,
+                JsonHelperEnum::Secp256k1 => FilecoinSignatureType::Secp256k1,
+            };
+            Ok(signature_type)
+        }
+    }
+}
+
+pub mod cid_json {
+    use cid::Cid;
+    use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
+
+    /// Wrapper for serializing and de-serializing a Cid from JSON.
+    #[derive(Deserialize, Serialize, Clone, Debug)]
+    #[serde(transparent)]
+    pub struct CidJson(#[serde(with = "self")] pub Cid);
+
+    /// Wrapper for serializing a CID reference to JSON.
+    #[derive(Serialize)]
+    #[serde(transparent)]
+    pub struct CidJsonRef<'a>(#[serde(with = "self")] pub &'a Cid);
+
+    impl From<CidJson> for Cid {
+        fn from(wrapper: CidJson) -> Self {
+            wrapper.0
+        }
+    }
+
+    pub fn serialize<S>(c: &Cid, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        CidMap { cid: c.to_string() }.serialize(serializer)
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Cid, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let CidMap { cid } = Deserialize::deserialize(deserializer)?;
+        cid.parse().map_err(de::Error::custom)
+    }
+
+    /// Structure just used as a helper to serialize a CID into a map with key "/"
+    #[derive(Serialize, Deserialize)]
+    struct CidMap {
+        #[serde(rename = "/")]
+        cid: String,
+    }
+
+    pub mod opt {
+        use super::{Cid, CidJson, CidJsonRef};
+        use serde::{self, Deserialize, Deserializer, Serialize, Serializer};
+
+        pub fn serialize<S>(v: &Option<Cid>, serializer: S) -> Result<S::Ok, S::Error>
+        where
+            S: Serializer,
+        {
+            v.as_ref().map(CidJsonRef).serialize(serializer)
+        }
+
+        pub fn deserialize<'de, D>(deserializer: D) -> Result<Option<Cid>, D::Error>
+        where
+            D: Deserializer<'de>,
+        {
+            let s: Option<CidJson> = Deserialize::deserialize(deserializer)?;
+            Ok(s.map(|v| v.0))
+        }
+    }
+}
+
+pub mod address_json {
+    use super::FilecoinAddress;
+    use serde::{de, Serialize, Deserialize, Deserializer, Serializer};
+    use std::borrow::Cow;
+    use std::str::FromStr;
+
+    /// Wrapper for serializing and de-serializing a `FilecoinAddress` from JSON.
+    #[derive(Deserialize, Serialize)]
+    #[serde(transparent)]
+    pub struct AddressJson(#[serde(with = "self")] pub FilecoinAddress);
+
+    /// Wrapper for serializing a `FilecoinAddress` reference to JSON.
+    #[derive(Serialize)]
+    #[serde(transparent)]
+    pub struct AddressJsonRef<'a>(#[serde(with = "self")] pub &'a FilecoinAddress);
+
+    impl From<FilecoinAddress> for AddressJson {
+        fn from(addr: FilecoinAddress) -> Self {
+            Self(addr)
+        }
+    }
+
+    impl From<AddressJson> for FilecoinAddress {
+        fn from(addr: AddressJson) -> Self {
+            addr.0
+        }
+    }
+
+    pub fn serialize<S>(addr: &FilecoinAddress, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(&addr.to_string())
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<FilecoinAddress, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let address_as_string: Cow<'de, str> = Deserialize::deserialize(deserializer)?;
+        FilecoinAddress::from_str(&address_as_string).map_err(de::Error::custom)
+    }
+}
+
+pub mod amount_json {
+    use super::FilecoinAmount;
+    use serde::{Deserialize, Serialize};
+    use std::str::FromStr;
+
+    /// Serializes `FilecoinAmount` as String
+    pub fn serialize<S>(amount: &FilecoinAmount, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        String::serialize(&amount.to_string(), serializer)
+    }
+
+    /// De-serializes String into `BigInt`.
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<FilecoinAmount, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        FilecoinAmount::from_str(&s).map_err(serde::de::Error::custom)
     }
 }

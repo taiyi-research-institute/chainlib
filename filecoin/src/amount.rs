@@ -48,7 +48,7 @@ impl fmt::Display for Denomination {
     }
 }
 
-trait FilecoinAmountAdapter {
+pub trait FilecoinAmountConverter {
 
     fn from_decimal_str(val: &str) -> Self;
 
@@ -71,8 +71,7 @@ trait FilecoinAmountAdapter {
     fn sub(self, b: Self) -> Self;
 }
 
-
-impl FilecoinAmountAdapter for FilecoinAmount {
+impl FilecoinAmountConverter for FilecoinAmount {
 
     fn from_decimal_str(val: &str) -> Self {
         FilecoinAmount::parse_bytes(val.as_bytes(), 10).unwrap()

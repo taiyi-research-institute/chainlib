@@ -23,7 +23,7 @@ pub trait Address:
     fn from_public_key(public_key: &Self::PublicKey, format: &Self::Format) -> Result<Self, AddressError>;
 
     fn is_valid(address: &str) -> bool {
-        Self::from_str(address).is_err()
+        Self::from_str(address).is_ok()
     }
 }
 

@@ -11,6 +11,7 @@ bitcoin = { path = "./bitcoin" }
 ethereum = { path = "./ethereum" }
 tron = { path = "./tron" }
 filecoin = { path = "./filecoin" }
+omni = { path = "./omni" }
 # rpc_test = { path = "./rpc_test" }
 
 [workspace]
@@ -20,5 +21,6 @@ members = [
     "ethereum",
     "tron",
     "filecoin",
+    "omni",
     # "rpc_test"
 ]

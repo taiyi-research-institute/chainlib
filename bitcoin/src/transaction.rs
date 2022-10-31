@@ -15,6 +15,14 @@ use chainlib_core::libsecp256k1;
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 
+type OmniNetwork = BitcoinNetwork;
+type OmniAddress<N: OmniNetwork> = BitcoinAddress<N: BitcoinNetwork>;
+type OmniAmount = BitcoinAmount;
+type OmniFormat = BitcoinFormat;
+type OmniTransactionOutput = BitcoinTransactionOutput;
+type OmniTransactionInput = BitcoinTransactionInput;
+type OmniTransactionParameters<N: OmniNetwork> = BitcoinTransactionParameters<N: BitcoinNetwork>;
+
 /// Returns the variable length integer of the given value.
 /// https://en.bitcoin.it/wiki/Protocol_documentation#Variable_length_integer
 pub fn variable_length_integer(value: u64) -> Result<Vec<u8>, TransactionError> {
@@ -200,6 +208,7 @@ pub enum Opcode {
     OP_CHECKSIG = 0xac,
     OP_EQUAL = 0x87,
     OP_EQUALVERIFY = 0x88,
+    OP_RETURN = 0x6a,
 }
 
 impl fmt::Display for Opcode {
@@ -210,6 +219,7 @@ impl fmt::Display for Opcode {
             Opcode::OP_CHECKSIG => write!(f, "OP_CHECKSIG"),
             Opcode::OP_EQUAL => write!(f, "OP_EQUAL"),
             Opcode::OP_EQUALVERIFY => write!(f, "OP_EQUALVERIFY"),
+            Opcode::OP_RETURN => write!(f, "OP_RETURN"),
         }
     }
 }
@@ -461,6 +471,43 @@ impl BitcoinTransactionOutput {
             amount,
             script_pub_key: create_script_pub_key::<N>(address)?,
         })
+    }
+    
+    /// Returns two outputs for an Omni transaction, with first one specifying
+    /// the receiver address and the second one containing the protocol data
+    /// for omni layer 
+    pub fn new_omni_output<N: OmniNetwork>(
+        address: &OmniAddress<N>,
+        amount: OmniAmount,
+    ) -> Result<Vec<Self>, TransactionError> {
+
+        let ordinary_output = OmniTransactionOutput {
+            amount: OmniAmount(0),
+            script_pub_key: create_script_pub_key::<N>(address)?,
+        };
+
+        let msg_type: u16 = 0;
+        let msg_version: u16 = 0;
+        let property_id: u32 = 1; // OMNI coin id
+        let amount = amount.0 as u64;
+
+        let mut script = vec![];
+        script.push(Opcode::OP_RETURN as u8);
+        script.push('o' as u8);
+        script.push('m' as u8);
+        script.push('n' as u8);
+        script.push('i' as u8);
+        script.append(&mut msg_version.to_be_bytes().to_vec());
+        script.append(&mut msg_type.to_be_bytes().to_vec());
+        script.append(&mut property_id.to_be_bytes().to_vec());
+        script.append(&mut amount.to_be_bytes().to_vec());
+        
+        let protocol_output = OmniTransactionOutput {
+            amount: OmniAmount(0),
+            script_pub_key: script,
+        };
+
+        Ok(vec![ordinary_output, protocol_output])
     }
 
     /// Read and output a Bitcoin transaction output

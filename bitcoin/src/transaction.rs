@@ -15,13 +15,11 @@ use chainlib_core::libsecp256k1;
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 
-type OmniNetwork = BitcoinNetwork;
-type OmniAddress<N: OmniNetwork> = BitcoinAddress<N: BitcoinNetwork>;
-type OmniAmount = BitcoinAmount;
+type OmniAddress<N> = BitcoinAddress<N>;
 type OmniFormat = BitcoinFormat;
 type OmniTransactionOutput = BitcoinTransactionOutput;
-type OmniTransactionInput = BitcoinTransactionInput;
-type OmniTransactionParameters<N: OmniNetwork> = BitcoinTransactionParameters<N: BitcoinNetwork>;
+type OmniTransactionInput<N> = BitcoinTransactionInput<N>;
+type OmniTransactionParameters<N> = BitcoinTransactionParameters<N>;
 
 /// Returns the variable length integer of the given value.
 /// https://en.bitcoin.it/wiki/Protocol_documentation#Variable_length_integer
@@ -476,13 +474,13 @@ impl BitcoinTransactionOutput {
     /// Returns two outputs for an Omni transaction, with first one specifying
     /// the receiver address and the second one containing the protocol data
     /// for omni layer 
-    pub fn new_omni_output<N: OmniNetwork>(
+    pub fn new_omni_output<N: BitcoinNetwork>(
         address: &OmniAddress<N>,
-        amount: OmniAmount,
+        amount: BitcoinAmount,
     ) -> Result<Vec<Self>, TransactionError> {
 
         let ordinary_output = OmniTransactionOutput {
-            amount: OmniAmount(0),
+            amount: BitcoinAmount(0),
             script_pub_key: create_script_pub_key::<N>(address)?,
         };
 
@@ -503,7 +501,7 @@ impl BitcoinTransactionOutput {
         script.append(&mut amount.to_be_bytes().to_vec());
         
         let protocol_output = OmniTransactionOutput {
-            amount: OmniAmount(0),
+            amount: BitcoinAmount(0),
             script_pub_key: script,
         };
 

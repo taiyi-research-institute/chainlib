@@ -24,5 +24,4 @@ pub trait BitcoinNetwork: Network {
 
     /// Returns the network of the given wif prefix.
     fn from_private_key_prefix(prefix: u8) -> Result<Self, PrivateKeyError>;
-
 }

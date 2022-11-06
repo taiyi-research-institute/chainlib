@@ -32,18 +32,7 @@ impl<N: BitcoinNetwork> Address for BitcoinAddress<N> {
 
     /// Returns the address corresponding to the given Bitcoin private key.
     fn from_private_key(private_key: &Self::PrivateKey, format: &Self::Format) -> Result<Self, AddressError> {
-        let public_key = private_key.to_public_key();
-        match format {
-            BitcoinFormat::P2PKH => Self::p2pkh(&public_key),
-            BitcoinFormat::P2WSH => {
-                return Err(AddressError::IncompatibleFormats(
-                    String::from("non-script"),
-                    String::from("p2wsh address"),
-                ))
-            }
-            BitcoinFormat::P2SH_P2WPKH => Self::p2sh_p2wpkh(&public_key),
-            BitcoinFormat::Bech32 => Self::bech32(&public_key),
-        }
+        Self::from_public_key(&private_key.to_public_key(), format)
     }
 
     /// Returns the address corresponding to the given Bitcoin public key.
@@ -63,6 +52,23 @@ impl<N: BitcoinNetwork> Address for BitcoinAddress<N> {
 }
 
 impl<N: BitcoinNetwork> BitcoinAddress<N> {
+
+    pub fn from_hash160(hash: &[u8]) -> Result<Self, AddressError> {
+
+        let mut address = [0u8; 25];
+        address[0] = N::to_address_prefix(&BitcoinFormat::P2PKH)[0];
+        address[1..21].copy_from_slice(hash);
+
+        let sum = &checksum(&address[0..21])[0..4];
+        address[21..25].copy_from_slice(sum);
+
+        Ok(Self {
+            address: address.to_base58(),
+            format: BitcoinFormat::P2PKH,
+            _network: PhantomData,
+        })
+    }
+
     /// Returns a P2PKH address from a given Bitcoin public key.
     pub fn p2pkh(public_key: &<Self as Address>::PublicKey) -> Result<Self, AddressError> {
         let public_key = match public_key.is_compressed() {
@@ -180,7 +186,7 @@ impl<N: BitcoinNetwork> FromStr for BitcoinAddress<N> {
                     return Err(AddressError::InvalidAddress(address.to_owned()));
                 }
 
-                //let data = bech32.data();
+                // let data = bech32.data();
                 let version = data[0].to_u8();
                 let mut program = Vec::from_base32(&data[1..])?;
 

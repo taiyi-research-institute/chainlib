@@ -47,7 +47,6 @@ impl BitcoinNetwork for Mainnet {
             _ => Err(PrivateKeyError::InvalidPrefix(vec![prefix])),
         }
     }
-
 }
 
 impl FromStr for Mainnet {

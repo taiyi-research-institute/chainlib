@@ -10,16 +10,11 @@ use chainlib_core::{PrivateKey, Transaction, TransactionError, TransactionId};
 
 use base58::FromBase58;
 use bech32::{self, FromBase32};
+use sha2::digest::typenum::Bit;
 use core::{fmt, str::FromStr};
 use chainlib_core::libsecp256k1;
 use serde::Serialize;
 use sha2::{Digest, Sha256};
-
-type OmniAddress<N> = BitcoinAddress<N>;
-type OmniFormat = BitcoinFormat;
-type OmniTransactionOutput = BitcoinTransactionOutput;
-type OmniTransactionInput<N> = BitcoinTransactionInput<N>;
-type OmniTransactionParameters<N> = BitcoinTransactionParameters<N>;
 
 /// Returns the variable length integer of the given value.
 /// https://en.bitcoin.it/wiki/Protocol_documentation#Variable_length_integer
@@ -142,6 +137,29 @@ pub fn create_script_pub_key<N: BitcoinNetwork>(address: &BitcoinAddress<N>) -> 
             Ok(WitnessProgram::new(&program_bytes)?.to_scriptpubkey())
         }
     }
+}
+
+/// Construct and return the OP_RETURN script for the data output of a tx
+/// that spends 'amount' basic units of OMNI coins.
+pub fn create_script_op_return(amount: i64) -> Result<Vec<u8>, TransactionError> {
+
+    let mut script = vec![];
+    
+    let msg_type: u16 = 0;
+    let msg_version: u16 = 0;
+    let property_id: u32 = 1; // OMNI coin id
+
+    script.push(Opcode::OP_RETURN as u8);
+    script.push('o' as u8);
+    script.push('m' as u8);
+    script.push('n' as u8);
+    script.push('i' as u8);
+    script.append(&mut msg_version.to_be_bytes().to_vec());
+    script.append(&mut msg_type.to_be_bytes().to_vec());
+    script.append(&mut property_id.to_be_bytes().to_vec());
+    script.append(&mut amount.to_be_bytes().to_vec());
+
+    Ok(script)
 }
 
 /// Represents a Bitcoin signature hash
@@ -460,6 +478,7 @@ pub struct BitcoinTransactionOutput {
 }
 
 impl BitcoinTransactionOutput {
+    
     /// Returns a Bitcoin transaction output.
     pub fn new<N: BitcoinNetwork>(
         address: &BitcoinAddress<N>,
@@ -471,42 +490,17 @@ impl BitcoinTransactionOutput {
         })
     }
     
-    /// Returns two outputs for an Omni transaction, with first one specifying
-    /// the receiver address and the second one containing the protocol data
-    /// for omni layer 
-    pub fn new_omni_output<N: BitcoinNetwork>(
-        address: &OmniAddress<N>,
-        amount: BitcoinAmount,
-    ) -> Result<Vec<Self>, TransactionError> {
+    /// Returns the data output for a tx that spends 'amount' basic units of OMNI coins. 
+    pub fn omni_data_output(amount: BitcoinAmount) -> Result<Self, TransactionError> {
 
-        let ordinary_output = OmniTransactionOutput {
+        let data_output = BitcoinTransactionOutput {
             amount: BitcoinAmount(0),
-            script_pub_key: create_script_pub_key::<N>(address)?,
+            script_pub_key: create_script_op_return(amount.0)?,
         };
 
-        let msg_type: u16 = 0;
-        let msg_version: u16 = 0;
-        let property_id: u32 = 1; // OMNI coin id
-        let amount = amount.0 as u64;
-
-        let mut script = vec![];
-        script.push(Opcode::OP_RETURN as u8);
-        script.push('o' as u8);
-        script.push('m' as u8);
-        script.push('n' as u8);
-        script.push('i' as u8);
-        script.append(&mut msg_version.to_be_bytes().to_vec());
-        script.append(&mut msg_type.to_be_bytes().to_vec());
-        script.append(&mut property_id.to_be_bytes().to_vec());
-        script.append(&mut amount.to_be_bytes().to_vec());
-        
-        let protocol_output = OmniTransactionOutput {
-            amount: BitcoinAmount(0),
-            script_pub_key: script,
-        };
-
-        Ok(vec![ordinary_output, protocol_output])
+        Ok(data_output)
     }
+
 
     /// Read and output a Bitcoin transaction output
     pub fn read<R: Read>(mut reader: &mut R) -> Result<Self, TransactionError> {
@@ -567,6 +561,21 @@ pub struct BitcoinTransactionParameters<N: BitcoinNetwork> {
 }
 
 impl<N: BitcoinNetwork> BitcoinTransactionParameters<N> {
+
+    /// Returns a BitcoinTransactionParameters given the inputs and outputs
+    pub fn new(
+        inputs: Vec<BitcoinTransactionInput<N>>,
+        outputs: Vec<BitcoinTransactionOutput>,
+    ) -> Result<Self, TransactionError> {
+        Ok(Self {
+            version: 2,
+            inputs: inputs,
+            outputs: outputs,
+            lock_time: 0,
+            segwit_flag: false
+        })
+    }
+
     /// Read and output the Bitcoin transaction parameters
     pub fn read<R: Read>(mut reader: R) -> Result<Self, TransactionError> {
         let mut version = [0u8; 4];
@@ -631,6 +640,12 @@ impl<N: BitcoinNetwork> BitcoinTransactionParameters<N> {
 pub struct BitcoinTransaction<N: BitcoinNetwork> {
     /// The transaction parameters (version, inputs, outputs, lock_time, segwit_flag)
     parameters: BitcoinTransactionParameters<N>,
+}
+
+impl<N: BitcoinNetwork> fmt::Display for BitcoinTransaction<N> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", hex::encode(self.to_bytes().unwrap()))
+    }
 }
 
 impl<N: BitcoinNetwork> Transaction for BitcoinTransaction<N> {

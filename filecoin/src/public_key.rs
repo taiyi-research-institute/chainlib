@@ -1,11 +1,19 @@
 use crate::address::FilecoinAddress;
 use crate::format::FilecoinFormat;
 use crate::private_key::FilecoinPrivateKey;
-use chainlib_core::{Address, PublicKey, PublicKeyError, libsecp256k1, hex, Error, AddressError};
+use chainlib_core::{
+    Address,
+    PublicKey,
+    PublicKeyError,
+    libsecp256k1,
+    hex,
+    Error,
+    AddressError
+};
 
 use core::{fmt, fmt::Display, str::FromStr};
 
-/// Represents an Ethereum public key
+/// Represents a filecoin public key
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FilecoinPublicKey(libsecp256k1::PublicKey);
 

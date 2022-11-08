@@ -501,7 +501,6 @@ impl BitcoinTransactionOutput {
         Ok(data_output)
     }
 
-
     /// Read and output a Bitcoin transaction output
     pub fn read<R: Read>(mut reader: &mut R) -> Result<Self, TransactionError> {
         let mut amount = [0u8; 8];

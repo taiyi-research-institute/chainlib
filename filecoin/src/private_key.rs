@@ -6,7 +6,6 @@ use chainlib_core::{Address, PrivateKey, PrivateKeyError, PublicKey, libsecp256k
 use core::{fmt, fmt::Display, str::FromStr};
 use rand::Rng;
 
-
 /// Represents a filecoin private key
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FilecoinPrivateKey(libsecp256k1::SecretKey);

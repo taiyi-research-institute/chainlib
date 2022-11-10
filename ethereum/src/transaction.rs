@@ -114,10 +114,6 @@ pub struct EthereumTransaction<N: EthereumNetwork> {
     _network: PhantomData<N>,
 }
 
-impl<N:EthereumNetwork> EthereumTransaction<N>{
-    
-}
-
 impl<N: EthereumNetwork> Transaction for EthereumTransaction<N> {
     type Address = EthereumAddress;
     type Format = EthereumFormat;

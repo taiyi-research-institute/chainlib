@@ -8,11 +8,15 @@ use std::hash::Hash;
 use std::str::FromStr;
 use std::default::Default;
 
+use chainlib_core::bls_signatures::Serialize as BlsSerialize;
 use chainlib_core::{
     Address,
     AddressError,
     PrivateKey,
-    utilities::crypto::{blake2b_160, blake2b_checksum}
+    utilities::crypto::{
+        blake2b_160,
+        blake2b_checksum
+    }
 };
 
 use data_encoding::Encoding;
@@ -45,9 +49,18 @@ impl Address for FilecoinAddress {
 
     /// Returns the address corresponding to the given public key.
     fn from_public_key(public_key: &Self::PublicKey, _: &Self::Format) -> Result<Self, AddressError> {
-        let stream = public_key.to_secp256k1_public_key().serialize();
-        let addr = FilecoinAddress::new_secp256k1(&stream).unwrap();
-        Ok(addr)
+        match public_key {
+            FilecoinPublicKey::Secp256k1(key) => {
+                Ok(FilecoinAddress::new_secp256k1(
+                    &key.serialize(),
+                ).unwrap())
+            },
+            FilecoinPublicKey::Bls(key) => {
+                Ok(FilecoinAddress::new_bls(
+                    &key.as_bytes()
+                ).unwrap())
+            }
+        }
     }
 }
 
@@ -513,8 +526,7 @@ const TESTNET_PREFIX: &str = "t";
 
 // TODO pull network from config (probably)
 // TODO: can we do this using build flags?
-pub const NETWORK_DEFAULT: Network = Network::Mainnet;
-
+pub const NETWORK_DEFAULT: Network = Network::Testnet;
 
 mod tests {
     use super::*;
@@ -526,13 +538,14 @@ mod tests {
 
     #[test]
     fn private_key_to_address() {
-        let privkey = "b2ad0aaa48a383a1fe45d3a3894720a9f0154b3bc3d783259d7758a7cfc3ce8a";
-        let privkey = FilecoinPrivateKey::from_str(privkey).unwrap();
-        let addr = FilecoinAddress::from_private_key(
-            &privkey, 
-            &FilecoinFormat::Standard
-        ).unwrap();
+        let privkey = FilecoinPrivateKey::new_secp256k1().unwrap();
+        let addr = privkey.to_address(&FilecoinFormat::Base32).unwrap();
+        println!("secp private key = {}", privkey);
+        println!("secp address = {}\n", addr);
 
-        println!("{}", addr);
+        let privkey = FilecoinPrivateKey::new_bls().unwrap();
+        let addr = privkey.to_address(&FilecoinFormat::Base32).unwrap();
+        println!("bls private key = {}", privkey);
+        println!("bls address = {}", addr);
     }
 }

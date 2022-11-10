@@ -9,7 +9,7 @@ use core::{
 };
 
 /// The interface for a generic public key.
-pub trait PublicKey: Clone + Debug + Display + FromStr + Send + Sync + 'static + Eq + Sized {
+pub trait PublicKey: Clone + Debug + Display + FromStr + Send + Sync + 'static + Sized {
     type Address: Address;
     type Format: Format;
     type PrivateKey: PrivateKey;

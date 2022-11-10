@@ -1,15 +1,22 @@
-use crate::address::FilecoinAddress;
+use crate::address::{FilecoinAddress, Protocol};
 use crate::amount::FilecoinAmount;
-use crate::address::ADDRESS_ENCODER as BASE32_ENCODER;
 use crate::format::FilecoinFormat;
 use crate::private_key::FilecoinPrivateKey;
 use crate::public_key::FilecoinPublicKey;
-use chainlib_core::{PublicKey, Transaction, TransactionId, libsecp256k1, Error, TransactionError, crypto::blake2b_256};
+use chainlib_core::{
+    Transaction,
+    TransactionId,
+    libsecp256k1,
+    bls_signatures,
+    TransactionError,
+    crypto::blake2b_256
+};
+use crate::address::ADDRESS_ENCODER as BASE32_ENCODER;
 
 use anyhow::anyhow;
 use fvm_ipld_encoding::de::{Deserialize, Deserializer};
 use fvm_ipld_encoding::ser::{Serialize, Serializer};
-use fvm_ipld_encoding::{de, ser, serde_bytes, Cbor, RawBytes, to_vec};
+use fvm_ipld_encoding::{de, ser, serde_bytes, Cbor, RawBytes};
 
 use fvm_shared::bigint::bigint_ser::{BigIntDe, BigIntSer};
 use fvm_shared::MethodNum;
@@ -190,7 +197,7 @@ impl fmt::Display for FilecoinTransactionId {
 #[derive(PartialEq, Clone, Debug, Serialize_tuple, Deserialize_tuple, Hash, Eq, Default)]
 pub struct FilecoinTransaction {
     pub params: FilecoinTransactionParameters,
-    pub signature: FilecoinSignature,
+    pub signature: FilecoinSignature
 }
 
 impl Cbor for FilecoinTransaction {}
@@ -203,6 +210,7 @@ impl Transaction for FilecoinTransaction {
     type TransactionId = FilecoinTransactionId;
     type TransactionParameters = FilecoinTransactionParameters;
 
+    /// Returns a new filecoin transaction given the transaction parameters
     fn new(parameters: &Self::TransactionParameters) -> Result<Self, TransactionError> {
         Ok(Self {
             params: parameters.clone(),
@@ -210,38 +218,61 @@ impl Transaction for FilecoinTransaction {
         })
     }
     
+    /// Reconstruct a filecoin transaction from the given binary stream and return it
     fn from_bytes(transaction: &Vec<u8>) -> Result<Self, TransactionError> {
         // deserialization waited to be specified
         Ok(FilecoinTransaction::default())
     }
     
-    fn sign(&mut self, signature: Vec<u8>, recid: u8) -> Result<Vec<u8>, TransactionError> {
-        let mut signature = signature;
+    /// Insert the given signature into this filecoin transaction to make it signed,
+    /// and return the binary stream of it
+    fn sign(&mut self, mut signature: Vec<u8>, recid: u8) -> Result<Vec<u8>, TransactionError> {
         signature.push(recid);
-        let sig = FilecoinSignature{
-            sig_type: FilecoinSignatureType::Secp256k1,
+        let sig = FilecoinSignature {
+            sig_type: match self.params.from.protocol() {
+                Protocol::Secp256k1 => FilecoinSignatureType::Secp256k1,
+                Protocol::BLS => FilecoinSignatureType::BLS,
+                _ => panic!("unrecognized signature type")
+            },
             bytes: signature,
         };
         self.signature = sig;
         self.to_bytes()
     }
 
+    /// Sign the filecoin transaction with the given filecoin private key,
+    /// and return the binary stream of it
     fn sign_with_private_key(&mut self, private_key: &Self::PrivateKey) -> Result<Vec<u8>, TransactionError> {
-        let hash = blake2b_256(&self.params.to_bytes()[..]);
-        let msg = libsecp256k1::Message::parse_slice(&hash[..]).unwrap();
-        let key = private_key.to_secp256k1_secret_key();
-        let (sig, recid) = libsecp256k1::sign(&msg, &key);
-        self.sign(sig.serialize().to_vec(), recid.serialize())
+
+        use bls_signatures::Serialize;
+        match private_key {
+            FilecoinPrivateKey::Secp256k1(key) => {
+                let hash = blake2b_256(&self.params.to_bytes());
+                let hash = libsecp256k1::Message::parse_slice(&hash).unwrap();
+                let (sig, recid) = libsecp256k1::sign(&hash, &key);
+                self.sign(sig.serialize().to_vec(), recid.serialize())
+            },
+            FilecoinPrivateKey::Bls(key) => {
+                let msg = self.params.to_bytes();
+                let sig = key.sign(&msg);
+                let mut sig = sig.as_bytes();
+                let rec_id = sig.pop().unwrap();
+                sig.truncate(sig.len() - 1);
+                self.sign(sig, rec_id)
+            },
+        }
     }
 
+    /// Returns the binary stream of this filecoin transaction
     fn to_bytes(&self) -> Result<Vec<u8>, TransactionError> {
         Ok(serde_json::to_string(&json::FilecoinTransactionJsonRef(self))?.as_bytes().to_vec())
     }
 
+    /// Returns the transaction id of this filecoin transaction
     fn to_transaction_id(&self) -> Result<Self::TransactionId, TransactionError> {
         let stream = self.to_bytes().unwrap();
         Ok(FilecoinTransactionId{
-            hash: blake2b_256(&stream[..]).to_vec(),
+            hash: blake2b_256(&stream).to_vec(),
         })
     }
 }
@@ -313,6 +344,8 @@ pub mod json {
 }
 
 pub mod parameter_json {
+    use std::marker::PhantomData;
+
     use cid::Cid;
     use super::address_json::AddressJson;
     use super::amount_json;

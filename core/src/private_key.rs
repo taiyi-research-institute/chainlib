@@ -10,7 +10,7 @@ use core::{
 use rand::Rng;
 
 /// The interface for a generic private key.
-pub trait PrivateKey: Clone + Debug + Display + FromStr + Send + Sync + 'static + Eq + Sized {
+pub trait PrivateKey: Clone + Debug + Display + FromStr + Send + Sync + 'static + Sized {
     type Address: Address;
     type Format: Format;
     type PublicKey: PublicKey;

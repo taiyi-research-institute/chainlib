@@ -23,7 +23,7 @@ impl PublicKey for EthereumPublicKey {
 
     /// Returns the address of this public key.
     fn to_address(&self, _format: &Self::Format) -> Result<Self::Address, AddressError> {
-        Address::from_public_key(self, _format)
+        Self::Address::from_public_key(self, _format)
     }
 }
 

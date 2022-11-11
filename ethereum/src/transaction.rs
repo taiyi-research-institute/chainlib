@@ -43,7 +43,7 @@ pub fn from_bytes(value: &Vec<u8>) -> Result<u32, TransactionError> {
     }
 }
 
-pub fn encode_transfer(func_name: &str, address: &EthereumAddress, amount: U256) -> Vec<u8>{
+pub fn encode_transfer(func_name: &str, address: &EthereumAddress, amount: U256) -> Vec<u8> {
     let func = Function {
         name: func_name.to_string(),
         inputs: vec![

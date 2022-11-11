@@ -16,7 +16,8 @@ use crate::address::ADDRESS_ENCODER as BASE32_ENCODER;
 use anyhow::anyhow;
 use fvm_ipld_encoding::de::{Deserialize, Deserializer};
 use fvm_ipld_encoding::ser::{Serialize, Serializer};
-use fvm_ipld_encoding::{de, ser, serde_bytes, Cbor, RawBytes};
+use fvm_ipld_encoding::{de, ser, serde_bytes, Cbor};
+pub use fvm_ipld_encoding::RawBytes;
 
 use fvm_shared::bigint::bigint_ser::{BigIntDe, BigIntSer};
 use fvm_shared::MethodNum;

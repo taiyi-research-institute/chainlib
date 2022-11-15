@@ -9,7 +9,7 @@ use std::{fmt, str::FromStr};
 pub struct Heco;
 
 impl Network for Heco {
-    const NAME: &'static str = "Heco";
+    const NAME: &'static str = "heco";
 }
 
 impl EthereumNetwork for Heco {

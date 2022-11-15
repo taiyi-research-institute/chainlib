@@ -15,7 +15,6 @@ pub use self::amount::*;
 pub mod format;
 pub use self::format::*;
 
-
 pub mod network;
 pub use self::network::*;
 
@@ -27,7 +26,6 @@ pub use self::public_key::*;
 
 pub mod transaction;
 pub use self::transaction::*;
-
 
 
 #[cfg(test)]

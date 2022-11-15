@@ -33,21 +33,21 @@ pub fn build_transfer_contract(owner: &str, recipient: &str, amount: i64) -> Res
     build_contract(&transfer_contract)
 }
 
-pub fn build_trc20_func_contract(owner: &str , conract: &str,func_name: &str, recipient: &str, amount :&str) -> Result<Contract,Error> {
+pub fn build_trc20_func_contract(owner: &str , contract: &str,func_name: &str, recipient: &str, amount :&str) -> Result<Contract,Error> {
     let address = TronAddress::from_str(recipient)?;
     let amount = U256::from_dec_str(amount).map_err(|e| Error::RuntimeError(e.to_string()))?;
     let data = abi::encode_transfer(func_name, &address, amount);
-    build_trigger_contract(owner,conract, data)
+    build_trigger_contract(owner,contract, data)
 }
 
-pub fn build_trc20_transfer_contract(owner: &str , conract: &str, recipient: &str, amount :&str) -> Result<Contract,Error> {
-    build_trc20_func_contract(owner, conract, "transfer", recipient, amount)
+pub fn build_trc20_transfer_contract(owner: &str , contract: &str, recipient: &str, amount :&str) -> Result<Contract,Error> {
+    build_trc20_func_contract(owner, contract, "transfer", recipient, amount)
 }
 
-pub fn build_trigger_contract(owner: &str, conract: &str, data: Vec<u8>) -> Result<Contract,Error>{
+pub fn build_trigger_contract(owner: &str, contract: &str, data: Vec<u8>) -> Result<Contract,Error>{
     let mut ts_contract = TriggerSmartContract::new();
     ts_contract.owner_address = TronAddress::from_str(owner)?.as_bytes().to_vec();
-    ts_contract.contract_address = TronAddress::from_str(conract)?.as_bytes().to_vec();
+    ts_contract.contract_address = TronAddress::from_str(contract)?.as_bytes().to_vec();
     ts_contract.data = data;
     build_contract(&ts_contract)
 }

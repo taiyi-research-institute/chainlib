@@ -57,6 +57,10 @@ impl EthereumAddress {
         let address = regex.replace_all(&address, "").to_string();
         return Ok(hex::decode(address)?);
     }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
 }
 
 impl<'a> TryFrom<&'a str> for EthereumAddress {

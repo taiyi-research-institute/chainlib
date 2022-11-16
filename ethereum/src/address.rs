@@ -10,7 +10,7 @@ use chainlib_core::utilities::crypto::keccak256;
 use chainlib_core::hex;
 
 /// Represents an Ethereum address
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Hash, Default)]
 pub struct EthereumAddress(String);
 
 impl Address for EthereumAddress {

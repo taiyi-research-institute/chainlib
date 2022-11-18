@@ -299,7 +299,7 @@ impl<N: EthereumNetwork> Transaction for EthereumTransaction<N> {
     /// Otherwise, returns the hash of the raw transaction.
     fn to_transaction_id(&self) -> Result<Self::TransactionId, TransactionError> {
         Ok(Self::TransactionId {
-            txid: keccak256(&self.to_bytes()?).iter().cloned().collect(),
+            txid: Vec::<u8>::from(&keccak256(&self.to_bytes()?)[..])
         })
     }
 }

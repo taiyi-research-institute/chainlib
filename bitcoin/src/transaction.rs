@@ -840,8 +840,19 @@ impl<N: BitcoinNetwork> Transaction for BitcoinTransaction<N> {
         Ok(Self::TransactionId { txid, wtxid })
     }
 
+    /// Insert the signature into its corresponding input, the first two fields
+    /// of 'signature' being the index of the input and its public key
     fn sign(&mut self, signature: Vec<u8>, recid: u8) -> Result<Vec<u8>, TransactionError> {
-        todo!()
+        
+        // self.parameters.inputs[signature[0] as usize];
+
+        Ok(vec![])
+
+
+
+
+
+
     }
 }
 
@@ -966,6 +977,18 @@ impl<N: BitcoinNetwork> BitcoinTransaction<N> {
             }
         }
         new_transaction
+    }
+
+    /// Insert an 'address' into the input at 'index'
+    pub fn insert_address(&mut self, address: BitcoinAddress<N>, index: u32) -> Result<(), TransactionError> {
+        self.parameters.inputs[index as usize].outpoint.address = Some(address.clone());
+        self.insert_script_pub_key(create_script_pub_key(&address)?, index)
+    }
+
+    /// Insert a 'script_pub_key' into the input at 'index'
+    pub fn insert_script_pub_key(&mut self, script: Vec<u8>, index: u32) -> Result<(), TransactionError> {
+        self.parameters.inputs[index as usize].outpoint.script_pub_key = Some(script);
+        Ok(())
     }
 }
 

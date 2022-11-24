@@ -16,6 +16,7 @@ use chainlib_core::libsecp256k1;
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 
+
 /// Returns the variable length integer of the given value.
 /// https://en.bitcoin.it/wiki/Protocol_documentation#Variable_length_integer
 pub fn variable_length_integer(value: u64) -> Result<Vec<u8>, TransactionError> {
@@ -840,19 +841,11 @@ impl<N: BitcoinNetwork> Transaction for BitcoinTransaction<N> {
         Ok(Self::TransactionId { txid, wtxid })
     }
 
-    /// Insert the signature into its corresponding input, the first two fields
-    /// of 'signature' being the index of the input and its public key
     fn sign(&mut self, signature: Vec<u8>, recid: u8) -> Result<Vec<u8>, TransactionError> {
-        
-        // self.parameters.inputs[signature[0] as usize];
-
-        Ok(vec![])
-
-
-
-
-
-
+        panic!(
+            "trait method sign() deprecated for bitcoin, use custom methods for signature\
+             insertion in its own impl block instead."
+        );
     }
 }
 
@@ -989,6 +982,27 @@ impl<N: BitcoinNetwork> BitcoinTransaction<N> {
     pub fn insert_script_pub_key(&mut self, script: Vec<u8>, index: u32) -> Result<(), TransactionError> {
         self.parameters.inputs[index as usize].outpoint.script_pub_key = Some(script);
         Ok(())
+    }
+
+    /// Insert 'signature' and 'public_key' into the 'script_sig' field of the input at
+    /// 'index' to make this input signed, and returns the signed transaction stream
+    pub fn sign_p2pkh(
+        &mut self,
+        mut signature: Vec<u8>,
+        mut public_key: Vec<u8>,
+        index: u32
+    ) -> Result<Vec<u8>, TransactionError> {
+
+        let input = &mut self.parameters.inputs[index as usize];
+        signature.push((input.sighash_code as u32).to_le_bytes()[0]);
+        
+        let signature = [variable_length_integer(signature.len() as u64)?, signature].concat();
+        let public_key = [vec![public_key.len() as u8], public_key].concat();
+        
+        input.script_sig = [signature, public_key].concat();
+        input.is_signed = true;
+        
+        self.to_bytes()
     }
 }
 

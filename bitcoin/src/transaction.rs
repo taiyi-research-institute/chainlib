@@ -14,7 +14,7 @@ use sha2::digest::typenum::Bit;
 use core::{fmt, str::FromStr};
 use chainlib_core::libsecp256k1;
 use serde::Serialize;
-use sha2::{Digest, Sha256};
+pub use sha2::{Digest, Sha256};
 
 
 /// Returns the variable length integer of the given value.

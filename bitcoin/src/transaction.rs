@@ -155,10 +155,10 @@ pub fn create_script_op_return(amount: i64) -> Result<Vec<u8>, TransactionError>
     script.push('m' as u8);
     script.push('n' as u8);
     script.push('i' as u8);
-    script.append(&mut msg_version.to_be_bytes().to_vec());
-    script.append(&mut msg_type.to_be_bytes().to_vec());
-    script.append(&mut property_id.to_be_bytes().to_vec());
-    script.append(&mut amount.to_be_bytes().to_vec());
+    script.append(&mut msg_version.to_le_bytes().to_vec());
+    script.append(&mut msg_type.to_le_bytes().to_vec());
+    script.append(&mut property_id.to_le_bytes().to_vec());
+    script.append(&mut amount.to_le_bytes().to_vec());
 
     Ok(script)
 }
